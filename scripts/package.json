@@ -1,0 +1,11 @@
+{
+  "name": "leihla-scripts",
+  "version": "0.0.1",
+  "description": "",
+  "author": "Ferdinand Mütsch <ferdinand@muetsch.io>",
+  "license": "MIT",
+  "dependencies": {
+    "cli-progress": "^3.12.0",
+    "pocketbase": "^0.22.1"
+  }
+}
