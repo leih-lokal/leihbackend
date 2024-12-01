@@ -1,0 +1,36 @@
+POST http://localhost:8090/api/collections/item/records
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb2xsZWN0aW9uSWQiOiJwYmNfMzE0MjYzNTgyMyIsImV4cCI6MTczMzE2MjAwNCwiaWQiOiIzaWZudjhsbDhyOTkydWQiLCJyZWZyZXNoYWJsZSI6dHJ1ZSwidHlwZSI6ImF1dGgifQ.LmJSddlHLd32n4RYpVdljQ89fIxqmBDq12mhc9OyfNs
+Content-Type: application/json
+
+{
+    "iid": 9999,
+    "legacy_rev": "01-abcdefghijklmnopqrstuvwxyz123456",
+    "name": "Delicious Apple Pie",
+    "added_on": "Sun, 01 Dec 2024 18:24:51 GMT",
+    "status": "outofstock",
+    "brand": "Pie Master 3000",
+    "model": "Apple Supreme",
+    "packaging": "None",
+    "manual": "Just eat it",
+    "category": "Food & Drinks",
+    "deposit": 0.0,
+    "parts": 12,
+    "copies": 1,
+    "highlight_color": "#ff0000",
+    "synonyms": "Apefelkuchen,Kuchengeschmack",
+    "description": "<strong>Love it!</strong>",
+    "internal_note": ""
+}
+
+###
+
+PATCH http://localhost:8090/api/collections/item/records/s4j6dg5tpd9mf80
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb2xsZWN0aW9uSWQiOiJwYmNfMzE0MjYzNTgyMyIsImV4cCI6MTczMzE2MjAwNCwiaWQiOiIzaWZudjhsbDhyOTkydWQiLCJyZWZyZXNoYWJsZSI6dHJ1ZSwidHlwZSI6ImF1dGgifQ.LmJSddlHLd32n4RYpVdljQ89fIxqmBDq12mhc9OyfNs
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="images"; filename="pie.jpg"
+Content-Type: image/png
+
+< /tmp/pie.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--

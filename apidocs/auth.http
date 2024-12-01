@@ -1,0 +1,7 @@
+POST http://localhost:8090/api/collections/_superusers/auth-with-password
+Content-Type: application/json
+
+{
+    "identity": "ferdinand@muetsch.io",
+    "password": "admin123456"
+}
