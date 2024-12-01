@@ -45,7 +45,10 @@ async function run() {
 
     console.log('Loading dump file ...')
     const data = JSON.parse(readFileSync(COUCHDB_DUMP_FILE)).docs
-    const items = data.filter(d => d.type === 'item').filter(d => d.name !== '')
+    const items = data
+        .filter(d => d.type === 'item')
+        .filter(d => d.name !== '')
+        .filter(d => d.status !== 'deleted')
 
     console.log('Fetching existing items ...')
     const existingItems = await pb.collection('item').getFullList({ fields: 'id,iid,legacy_rev' })
