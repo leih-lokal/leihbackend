@@ -38,7 +38,7 @@ For details, see wiki entry.
 
 * [x] Basic data model and API endpoints for items
 * [x] Basic data model and API endpoints for reservations
-* [ ] Reservation validation and item status update
+* [x] Reservation validation and item status update
 * [ ] Reservation e-mail confirmations and cancellation
 * [ ] New customer-facing product catalog (Ruby)
 * [ ] New click & collect (aka. reservations) frontend (Ruby)
