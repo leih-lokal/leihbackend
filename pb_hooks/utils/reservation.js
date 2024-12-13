@@ -6,8 +6,10 @@ function validate(r) {
 // update item statuses
 // meant to be called right before reservation is saved
 function onReserveItems(r) {
-    const { setStatus, countActiveRentals, countActiveReservations } = require(`${__hooks}/utils/item.js`)
-
+    const itemService = require(`${__hooks}/services/item.js`)
+    const rentalService = require(`${__hooks}/services/rental.js`)
+    const reservationService = require(`${__hooks}/services/reservation.js`)
+    
     const items = r.getStringSlice('items').map(id => $app.findRecordById('item', id))
 
     items.forEach(item => {
@@ -17,17 +19,17 @@ function onReserveItems(r) {
         if (status !== 'instock') throw new InternalServerError(`Invalid status of item ${item.id}`)
 
         if (copies === 1) {
-            return setStatus(item, 'reserved')
+            return itemService.setStatus(item, 'reserved')
         }
 
-        const activeRentals = countActiveRentals(item.id)
-        const activeReservations = countActiveReservations(item.id)
+        const activeRentals = rentalService.countActiveByItem(item.id)
+        const activeReservations = reservationService.countActiveByItem(item.id)
         const copiesLeft = copies - activeRentals - activeReservations
 
         if (copiesLeft < 1) throw new InternalServerError(`Invalid reservation state of item ${item.id}`)
 
         if (copiesLeft == 1) {
-            return setStatus(item, 'reserved')
+            return itemService.setStatus(item, 'reserved')
         }
     })
 }
@@ -36,9 +38,9 @@ function validateStatus(r) {
     const { isAvailable: isItemAvailable } = require(`${__hooks}/utils/item.js`)
 
     const items = r.getStringSlice('items').map(id => $app.findRecordById('item', id))
-    const unavailableItems = items.filter(i => !isItemAvailable(i)).map(i => i.id)
+    const unavailableItems = items.filter(i => !isItemAvailable(i)).map(i => i.getInt('iid'))
     if (unavailableItems.length) {
-        throw new BadRequestError(`Items ${unavailableItems} not available.`, {'a': 'b'})
+        throw new BadRequestError(`Items ${unavailableItems} not available.`)
     }
 }
 
@@ -66,12 +68,6 @@ function validatePickup(r) {
     }
 }
 
-function markAsDone(r) {
-    r.set('done', true)
-    $app.save(r)
-    $app.logger().info(`Marked reservation ${r.id} as done.`)
-}
-
 module.exports = {
-    validate, onReserveItems, markAsDone
+    validate, onReserveItems,
 }

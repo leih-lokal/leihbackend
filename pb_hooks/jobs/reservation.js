@@ -1,6 +1,6 @@
 function clearReservations() {
-    const { setStatus } = require(`${__hooks}/utils/item.js`)
-    const { markAsDone } = require(`${__hooks}/utils/reservation.js`)
+    const itemService = require(`${__hooks}/services/item.js`)
+    const reservationService = require(`${__hooks}/services/reservation.js`)
 
     const pastReservations = $app.findRecordsByFilter('reservation', `pickup < '${new Date().toISOString()}' && done = false`)
     const pendingReservations = $app.findRecordsByFilter('reservation', `pickup > '${new Date().toISOString()}'`)
@@ -14,9 +14,9 @@ function clearReservations() {
     instockItems
         .map(id => $app.findRecordById('item', id))
         .filter(i => i.getString('status') === 'reserved')
-        .forEach(i => setStatus(i, 'instock'))
+        .forEach(i => itemService.setStatus(i, 'instock'))
 
-    pastReservations.forEach(markAsDone)
+    pastReservations.forEach(reservationService.markAsDone)
 }
 
 module.exports = {

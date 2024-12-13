@@ -1,11 +1,10 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-onRecordCreate((e) => {
-    throw new BadRequestError('Just a test', {'a': 'b'})
-    // const { validate, onReserveItems } = require(`${__hooks}/utils/reservation.js`)
+onRecordCreateRequest((e) => {
+    const { validate, onReserveItems } = require(`${__hooks}/utils/reservation.js`)
 
-    // validate(e.record)
-    // onReserveItems(e.record)
+    validate(e.record)
+    onReserveItems(e.record)
 
     e.next()
 }, 'reservation')
