@@ -14,9 +14,9 @@ function isAvailable(item) {
 }
 
 function setStatus(item, status) {
-    $app.logger().info(`Updating status of item ${item.id} to ${status}`)
     item.set('status', status)
     $app.save(item)
+    $app.logger().info(`Updated status of item ${item.id} to ${status}`)
 }
 
 function countActiveRentals(itemId) {

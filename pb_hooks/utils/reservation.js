@@ -66,6 +66,12 @@ function validatePickup(r) {
     }
 }
 
+function markAsDone(r) {
+    r.set('done', true)
+    $app.save(r)
+    $app.logger().info(`Marked reservation ${r.id} as done.`)
+}
+
 module.exports = {
-    validate, onReserveItems
+    validate, onReserveItems, markAsDone
 }
