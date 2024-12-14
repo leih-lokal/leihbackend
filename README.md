@@ -39,7 +39,8 @@ For details, see wiki entry.
 * [x] Basic data model and API endpoints for items
 * [x] Basic data model and API endpoints for reservations
 * [x] Reservation validation and item status update
-* [ ] Reservation e-mail confirmations and cancellation
+* [x] Reservation e-mail confirmations
+* [ ] Reservation cancellation
 * [ ] New customer-facing product catalog (Ruby)
 * [ ] New click & collect (aka. reservations) frontend (Ruby)
 * [ ] Replace legacy API / database calls for products in _LeihLokalVerwaltung_ ("_LLV_")
