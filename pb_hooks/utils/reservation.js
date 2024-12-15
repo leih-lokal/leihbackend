@@ -1,22 +1,25 @@
 // Validation
 
+const {isAvailable} = require("./item");
+
 function validate(r) {
     validateStatus(r)
     validatePickup(r)
 }
 
 function validateStatus(r) {
-    const { isAvailable: isItemAvailable } = require(`${__hooks}/utils/item.js`)
+    const {isAvailable: isItemAvailable} = require(`${__hooks}/utils/item.js`)
 
-    const items = r.getStringSlice('items').map(id => $app.findRecordById('item', id))
-    const unavailableItems = items.filter(i => !isItemAvailable(i)).map(i => i.getInt('iid'))
+    $app.expandRecord(r, ['items'], null)
+
+    const unavailableItems = r.expandedAll('items').filter(i => !isItemAvailable(i)).map(i => i.getInt('iid'))
     if (unavailableItems.length) {
         throw new BadRequestError(`Items ${unavailableItems} not available.`)
     }
 }
 
 function validatePickup(r) {
-    const { OPENING_HOURS, WEEKDAYS } = require(`${__hooks}/constants.js`)
+    const {OPENING_HOURS, WEEKDAYS} = require(`${__hooks}/constants.js`)
 
     const pickup = new Date(r.getDateTime('pickup').string().replace(' ', 'T'))
     if (pickup < new Date()) {
@@ -43,38 +46,26 @@ function validatePickup(r) {
 
 // update item statuses
 // meant to be called right before reservation is saved
-function onReserveItems(r) {
+function updateItems(r, reserved) {
     const itemService = require(`${__hooks}/services/item.js`)
-    const rentalService = require(`${__hooks}/services/rental.js`)
-    const reservationService = require(`${__hooks}/services/reservation.js`)
+    const {isAvailable} = require(`${__hooks}/utils/item.js`)
 
-    const items = r.getStringSlice('items').map(id => $app.findRecordById('item', id))
+    $app.expandRecord(r, ['items'], null)
 
-    items.forEach(item => {
+    r.expandedAll('items').forEach(item => {
+        if (reserved && !isAvailable(item)) throw new InternalServerError(`Can't set status of item ${item.id} to (reserved: ${reserved}), because invalid state`)
+
         const status = item.getString('status')
-        const copies = item.getInt('copies')
 
-        if (status !== 'instock') throw new InternalServerError(`Invalid status of item ${item.id}`)
-
-        if (copies === 1) {
-            return itemService.setStatus(item, 'reserved')
-        }
-
-        const activeRentals = rentalService.countActiveByItem(item.id)
-        const activeReservations = reservationService.countActiveByItem(item.id)
-        const copiesLeft = copies - activeRentals - activeReservations
-
-        if (copiesLeft < 1) throw new InternalServerError(`Invalid reservation state of item ${item.id}`)
-
-        if (copiesLeft == 1) {
-            return itemService.setStatus(item, 'reserved')
-        }
+        if (reserved) return itemService.setStatus(item, 'reserved')
+        else if (status === 'reserved') return itemService.setStatus(item, 'instock')
+        else $app.logger().info(`Not updating status of item ${item.id}, because is not currently reserved`)
     })
 }
 
 // E-Mail Sending
 function sendConfirmationMail(r) {
-    const { fmtDateTime } = require(`${__hooks}/utils/common.js`)
+    const {fmtDateTime} = require(`${__hooks}/utils/common.js`)
 
     $app.expandRecord(r, ['items'], null)
 
@@ -99,7 +90,7 @@ function sendConfirmationMail(r) {
             address: $app.settings().meta.senderAddress,
             name: $app.settings().meta.senderName,
         },
-        to: [{ address: r.getString('customer_email') }],
+        to: [{address: r.getString('customer_email')}],
         subject: `Deine Reservierung für ${pickupDateStr} erhalten`,
         html,
     })
@@ -108,5 +99,5 @@ function sendConfirmationMail(r) {
 }
 
 module.exports = {
-    validate, onReserveItems, sendConfirmationMail,
+    validate, updateItems, sendConfirmationMail,
 }

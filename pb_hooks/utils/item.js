@@ -1,5 +1,4 @@
 function isAvailable(item) {
-    const itemService = require(`${__hooks}/services/item.js`)
     const rentalService = require(`${__hooks}/services/rental.js`)
     const reservationService = require(`${__hooks}/services/reservation.js`)
 
@@ -12,9 +11,7 @@ function isAvailable(item) {
     const activeRentals = rentalService.countActiveByItem(item.id)
     const activeReservations = reservationService.countActiveByItem(item.id)
 
-    if ((copies - activeRentals - activeReservations) > 0) return true
-
-    return false
+    return (copies - activeRentals - activeReservations) > 0;
 }
 
 module.exports = {
