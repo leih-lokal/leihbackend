@@ -5,14 +5,14 @@ Wir haben Deine Reservierung erhalten. Wir werden diese baldmöglich bearbeiten 
 Bitte beachte: Falls Du noch keine Nutzernummer hast, d.h. Neukunde bist, drucke bitte (falls möglich) das <a href="https://www.buergerstiftung-karlsruhe.de/wp-content/uploads/2022/03/2022_03_05-NutzungsantragLeihbedingungen.pdf">Registrierungsformular</a> aus und bringen es ausgefüllt mit. Kein Problem, falls du keinen Drucker hast, haben wir auch Formulare vor Ort.
 <br>
 <br>
-Um den Termin wieder abzusagen, klicken bitte auf folgenden Link: <a href="#">Termin absagen</a>.
+Um den Termin wieder abzusagen, klicken bitte auf folgenden Link: <a href="{{ .cancel_link }}">Termin absagen</a>.
 <br>
 <br>
 <h3>Reservierungsübersicht</h3>
 
 <h4>Deine Daten:</h4>
 <ul>
-    <li><strong>Abholtermin:</strong> {{ .pickup }} (Ungefährt Abholzeit)</li>
+    <li><strong>Abholtermin:</strong> {{ .pickup }} (Ungefähre Abholzeit)</li>
     <li><strong>Dein Name:</strong> {{ .customer_name }}</li>
     {{ if gt .customer_iid 0 }}
     <li><strong>Dein Nutzernummer:</strong> {{ .customer_iid }}</li>

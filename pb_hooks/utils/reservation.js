@@ -50,9 +50,10 @@ function updateItems(r, reserved) {
     const itemService = require(`${__hooks}/services/item.js`)
     const {isAvailable} = require(`${__hooks}/utils/item.js`)
 
-    $app.expandRecord(r, ['items'], null)
+    // explicitly not using record expansion here, because would yield empty result for whatever reason
+    const items = $app.findRecordsByIds('item', r.getStringSlice('items'))
 
-    r.expandedAll('items').forEach(item => {
+    items.forEach(item => {
         if (reserved && !isAvailable(item)) throw new InternalServerError(`Can't set status of item ${item.id} to (reserved: ${reserved}), because invalid state`)
 
         const status = item.getString('status')
@@ -71,6 +72,7 @@ function sendConfirmationMail(r) {
 
     const customerEmail = r.getString('customer_email')
     const pickupDateStr = fmtDateTime(r.getDateTime('pickup'))
+    const cancelLink = `${$app.settings().meta.appURL}/reservation/cancel?token=${r.getString("cancel_token")}`
 
     const html = $template.loadFiles(`${__hooks}/views/mail/reservation_confirmation.html`).render({
         pickup: pickupDateStr,
@@ -82,7 +84,8 @@ function sendConfirmationMail(r) {
         items: r.expandedAll('items').map(i => ({
             iid: i.getInt('iid'),
             name: i.getString('name'),
-        }))
+        })),
+        cancel_link: cancelLink
     })
 
     const message = new MailerMessage({
