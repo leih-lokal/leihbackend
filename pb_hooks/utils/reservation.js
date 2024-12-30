@@ -1,14 +1,12 @@
 // Validation
 
-const {isAvailable} = require("./item");
-
 function validate(r) {
     validateStatus(r)
     validatePickup(r)
 }
 
 function validateStatus(r) {
-    const {isAvailable: isItemAvailable} = require(`${__hooks}/utils/item.js`)
+    const { isAvailable: isItemAvailable } = require(`${__hooks}/utils/item.js`)
 
     $app.expandRecord(r, ['items'], null)
 
@@ -19,7 +17,7 @@ function validateStatus(r) {
 }
 
 function validatePickup(r) {
-    const {OPENING_HOURS, WEEKDAYS} = require(`${__hooks}/constants.js`)
+    const { OPENING_HOURS, WEEKDAYS } = require(`${__hooks}/constants.js`)
 
     const pickup = new Date(r.getDateTime('pickup').string().replace(' ', 'T'))
     if (pickup < new Date()) {
@@ -46,27 +44,29 @@ function validatePickup(r) {
 
 // update item statuses
 // meant to be called right before reservation is saved
-function updateItems(r, reserved) {
+function updateItems(recordOrItems, reserved, app = $app) {
     const itemService = require(`${__hooks}/services/item.js`)
-    const {isAvailable} = require(`${__hooks}/utils/item.js`)
+    const { isAvailable } = require(`${__hooks}/utils/item.js`)
 
     // explicitly not using record expansion here, because would yield empty result for whatever reason
-    const items = $app.findRecordsByIds('item', r.getStringSlice('items'))
+    const items = !(recordOrItems instanceof Array)
+        ? app.findRecordsByIds('item', recordOrItems.getStringSlice('items'))
+        : app.findRecordsByIds('item', recordOrItems)
 
     items.forEach(item => {
         if (reserved && !isAvailable(item)) throw new InternalServerError(`Can't set status of item ${item.id} to (reserved: ${reserved}), because invalid state`)
 
         const status = item.getString('status')
 
-        if (reserved) return itemService.setStatus(item, 'reserved')
-        else if (status === 'reserved') return itemService.setStatus(item, 'instock')
-        else $app.logger().info(`Not updating status of item ${item.id}, because is not currently reserved`)
+        if (reserved) return itemService.setStatus(item, 'reserved', app)
+        else if (status === 'reserved') return itemService.setStatus(item, 'instock', app)
+        else app.logger().info(`Not updating status of item ${item.id}, because is not currently reserved`)
     })
 }
 
 // E-Mail Sending
 function sendConfirmationMail(r) {
-    const {fmtDateTime} = require(`${__hooks}/utils/common.js`)
+    const { fmtDateTime } = require(`${__hooks}/utils/common.js`)
 
     $app.expandRecord(r, ['items'], null)
 
@@ -93,7 +93,7 @@ function sendConfirmationMail(r) {
             address: $app.settings().meta.senderAddress,
             name: $app.settings().meta.senderName,
         },
-        to: [{address: r.getString('customer_email')}],
+        to: [{ address: r.getString('customer_email') }],
         subject: `Deine Reservierung für ${pickupDateStr} erhalten`,
         html,
     })

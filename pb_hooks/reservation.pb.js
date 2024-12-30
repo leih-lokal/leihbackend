@@ -1,12 +1,21 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-const {handleGetCancel} = require(`${__hooks}/routes/reservation`)
+/*
+ Developer Notes:
+ Most hooks are manually wrapped inside a transaction so that everything will be rolled back if one part fails.
+ For example, if a new reservation can't be inserted, the according item statuses must not be updated either.
+ Vice versa, if updating the item status fails for whatever reason, there shouldn't be a valid reservation present.
+ To ensure valid transaction and prevent deadlocks, all write operations within the call MUST use the transaction all (txApp aka. e.app) provided by wrapTransactional.
+ Hopefully, there will be a more convenient way to accomplish this in future releases of Pocketbase.
+*/
+
+const { handleGetCancel } = require(`${__hooks}/routes/reservation`)
 
 // Request hooks
 // ----- //
 
 onRecordCreateRequest((e) => {
-    const {validate, sendConfirmationMail} = require(`${__hooks}/utils/reservation.js`)
+    const { validate, sendConfirmationMail } = require(`${__hooks}/utils/reservation.js`)
 
     validate(e.record)
     e.next()
@@ -17,26 +26,47 @@ onRecordCreateRequest((e) => {
 // Record hooks
 // ----- //
 
-onRecordAfterCreateSuccess((e) => {
-    const {updateItems} = require(`${__hooks}/utils/reservation.js`)
+onRecordCreateExecute((e) => {
+    const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
+    const { updateItems } = require(`${__hooks}/utils/reservation.js`)
 
-    updateItems(e.record, true)
-    e.next()
+    wrapTransactional(e, (e) => {
+        e.next()
+        updateItems(e.record, true, e.app)
+    })
 }, 'reservation')
 
-onRecordAfterUpdateSuccess((e) => {
-    const {updateItems} = require(`${__hooks}/utils/reservation.js`)
+onRecordUpdateExecute((e) => {
+    const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
+    const { updateItems } = require(`${__hooks}/utils/reservation.js`)
 
-    if (e.record.getBool('done')) updateItems(e.record, false)
-    // TODO: update reservation status if item was removed from or added to a reservation
-    e.next()
+    wrapTransactional(e, (e) => {
+        const oldRecord = $app.findRecordById('reservation', e.record.id)
+
+        e.next()
+
+        const reserved = !e.record.getBool('done')
+        const itemIdsOld = oldRecord.getStringSlice('items')
+        const itemIdsNew = e.record.getStringSlice('items')
+        const itemsRemoved = itemIdsOld.filter(id => !itemIdsNew.includes(id))
+        const itemsAdded = itemIdsNew.filter(id => !itemIdsOld.includes(id))
+
+        $app.logger().info(`${itemsRemoved.length} items removed (${itemsRemoved}) and ${itemsAdded.length} added (${itemsAdded}) to reservation ${e.record.id} as part of update`)
+
+        updateItems(e.record, reserved, e.app)
+        if (itemsRemoved.length) updateItems(itemsRemoved, false, e.app)
+    })
+
 }, 'reservation')
 
-onRecordAfterDeleteSuccess((e) => {
-    const {updateItems} = require(`${__hooks}/utils/reservation.js`)
+onRecordDeleteExecute((e) => {
+    const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
+    const { updateItems } = require(`${__hooks}/utils/reservation.js`)
 
-    updateItems(e.record, false)
-    e.next()
+    wrapTransactional(e, (e) => {
+        e.next()
+        updateItems(e.record, false, e.app)
+    })
 }, 'reservation')
 
 
@@ -48,6 +78,6 @@ routerAdd('get', '/reservation/cancel', handleGetCancel)
 // ----- //
 
 cronAdd('clear_reservations', "0 22 * * *", () => {
-    const {clearReservations} = require(`${__hooks}/jobs/reservations.js`)
+    const { clearReservations } = require(`${__hooks}/jobs/reservations.js`)
     clearReservations()
 })
