@@ -22,6 +22,14 @@ onRecordCreateRequest((e) => {
     sendConfirmationMail(e.record)
 }, 'reservation')
 
+onRecordUpdateRequest((e) => {
+    if (!e.record.getBool('done')) {
+        const oldRecord = $app.findRecordById('reservation', e.record.id)
+        if (oldRecord.getBool('done')) throw new BadRequestError('Can\'t undo a closed reservation')
+    }
+    e.next()
+}, 'reservation')
+
 
 // Record hooks
 // ----- //
@@ -45,16 +53,20 @@ onRecordUpdateExecute((e) => {
 
         e.next()
 
-        const reserved = !e.record.getBool('done')
+        // Note: "undoing" a closed transaction will not update item statuses accordingly.
+        // Instead, undoing should be prevented beforehand on a request level
+        const done = e.record.getBool('done')
+
         const itemIdsOld = oldRecord.getStringSlice('items')
         const itemIdsNew = e.record.getStringSlice('items')
         const itemsRemoved = itemIdsOld.filter(id => !itemIdsNew.includes(id))
         const itemsAdded = itemIdsNew.filter(id => !itemIdsOld.includes(id))
 
-        $app.logger().info(`${itemsRemoved.length} items removed (${itemsRemoved}) and ${itemsAdded.length} added (${itemsAdded}) to reservation ${e.record.id} as part of update`)
+        $app.logger().info(`Removed ${itemsRemoved.length} items (${itemsRemoved}) and added ${itemsAdded.length} items (${itemsAdded}) to reservation ${e.record.id} as part of update`)
 
-        updateItems(e.record, reserved, e.app)
         if (itemsRemoved.length) updateItems(itemsRemoved, false, e.app)
+        if (itemsAdded.length) updateItems(itemsAdded, !done, e.app)
+        if (done) updateItems(e.record, false, e.app)
     })
 
 }, 'reservation')
