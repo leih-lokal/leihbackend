@@ -5,7 +5,7 @@ leih.lokal Karlsruhe management system. Succesor of [LeihLokalVerwaltung](https:
 ## Setup
 1. Download Pocketbase
 ```bash
-wget https://github.com/pocketbase/pocketbase/releases/download/v0.23.8/pocketbase_0.23.8_linux_amd64.zip
+wget https://github.com/pocketbase/pocketbase/releases/download/v0.23.12/pocketbase_0.23.12_linux_amd64.zip
 unzip pocketbase*
 rm CHANGELOG* LICENSE* *.zip
 ```
@@ -40,7 +40,7 @@ For details, see wiki entry.
 * [x] Basic data model and API endpoints for reservations
 * [x] Reservation validation and item status update
 * [x] Reservation e-mail confirmations
-* [ ] Reservation cancellation
+* [x] Reservation cancellation
 * [ ] New customer-facing product catalog (Ruby)
 * [ ] New click & collect (aka. reservations) frontend (Ruby)
 * [ ] Replace legacy API / database calls for products in _LeihLokalVerwaltung_ ("_LLV_")

@@ -28,6 +28,7 @@ onRecordAfterUpdateSuccess((e) => {
     const {updateItems} = require(`${__hooks}/utils/reservation.js`)
 
     if (e.record.getBool('done')) updateItems(e.record, false)
+    // TODO: update reservation status if item was removed from or added to a reservation
     e.next()
 }, 'reservation')
 
