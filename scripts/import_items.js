@@ -1,12 +1,30 @@
 const PocketBase = require('pocketbase/cjs')
 const progress = require('cli-progress')
 const { readFileSync, stat } = require('fs')
+const levenshtein = require('js-levenshtein')
 
 const DRY = false
 const POCKETBASE_HOST = 'http://127.0.0.1:8090'
 const POCKETBASE_USER = 'ferdinand@muetsch.io'
 const POCKETBASE_PASSWORD = 'admin123456'
 const COUCHDB_DUMP_FILE = '../data/leihlokal_24-11-30_20-00-01.json'
+
+const CATEGORIES = ['Freizeit', 'Garten', 'Haushalt', 'Heimwerken', 'Kinder', 'Küche', 'Sonstige']
+
+function resolveCategories(categoryStr) {
+    return categoryStr.split(',')
+        .map(c => c.trim())
+        .map(c => {
+            if (CATEGORIES.includes(c)) return c
+            const closestMatches = CATEGORIES
+                .map(c1 => [c1, levenshtein(c.toLowerCase(), c1.toLowerCase())])
+                .filter(c => c[1] <= 3)
+                .toSorted((a, b) => a[1] - b[1])
+            if (closestMatches.length > 0) return closestMatches[0][0]
+            return null
+        })
+        .filter(c => c)
+}
 
 async function mapEntity(e) {
     const formData = new FormData()
@@ -20,7 +38,6 @@ async function mapEntity(e) {
     if (e.itype) formData.append('model', e.itype.trim())
     if (e.package) formData.append('packaging', e.package.trim())
     if (e.manual) formData.append('manual', e.manual.trim())
-    formData.append('category', e.category?.trim() || 'Keine')
     formData.append('deposit', e.deposit)
     formData.append('parts', parseInt((e.parts || '1').replace(/[^\d]+/g, '')) || 1)
     formData.append('copies', e.exists_more_than_once ? 1024 : 1)
@@ -34,7 +51,10 @@ async function mapEntity(e) {
         const res = await fetch(e.image)
         if (res.status === 200) formData.append('images', await res.blob(), fileName)
     }
-    
+
+    const categories = resolveCategories(e.category?.trim() || '')
+    categories.forEach(c => formData.append('category', c))
+
     return formData
 }
 
@@ -85,7 +105,7 @@ async function run() {
         }
         pbar2.increment()
     }
-    console.log()    
+    console.log()
 
     if (failedItemIds.size) {
         console.log(`\nFailed to create ${failedItemIds.size} items (due to validation error?):`)
