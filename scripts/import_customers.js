@@ -5,7 +5,7 @@ const { readFileSync } = require('fs')
 const DRY = false
 const POCKETBASE_HOST = 'http://127.0.0.1:8090'
 const POCKETBASE_USER = 'ferdinand@muetsch.io'
-const POCKETBASE_PASSWORD = '@TtV=)ER7A^%LLs*uC=7'
+const POCKETBASE_PASSWORD = 'admin123456'
 const COUCHDB_DUMP_FILE = '../data/leihlokal_23-12-14_20-00-01_cleaned.json'
 
 const HEARD_CHOICES = [
