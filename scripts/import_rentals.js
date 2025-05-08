@@ -4,7 +4,7 @@ const { readFileSync } = require('fs')
 
 const POCKETBASE_HOST = 'http://127.0.0.1:8090'
 const POCKETBASE_USER = 'ferdinand@muetsch.io'
-const POCKETBASE_PASSWORD = 'admin123456'
+const POCKETBASE_PASSWORD = '~c>L(!\'V"h89dwl-!:TV'
 const COUCHDB_DUMP_FILE = '../data/leihlokal_23-12-14_20-00-01_cleaned.json'
 
 const now = new Date()
@@ -19,6 +19,7 @@ async function mapEntity(e, customerId, itemId) {
         rented_on: new Date(e.rented_on),
         returned_on: e.returned_on ? new Date(e.returned_on) : null,
         expected_on: e.to_return_on ? new Date(e.to_return_on) : null,
+        extended_on: e.extended_on ? new Date(e.extended_on) : null,
         remark: e.remark?.trim() || null,
         employee: e.passing_out_employee?.trim() || null,
         employee_back: e.receiving_employee?.trim() || null,
