@@ -26,9 +26,27 @@ rm CHANGELOG* LICENSE* *.zip
 See [Web APIs reference](https://pocketbase.io/docs/api-records/) for documentation on what endpoints are available and how to use them (especially with regard to filtering, searching, etc.).
 
 ## Authentication
-For now, we'll only have _superusers_ (see [Authentication](https://pocketbase.io/docs/authentication/)), as only other internal services are meant to consume the APIs. In the future, we might actually want user accounts for our customers and thus also define [API rules and filters](https://pocketbase.io/docs/api-rules-and-filters/) then.
+For now, we'll only have _superusers_ (see [Authentication](https://pocketbase.io/docs/authentication/)) (as primarily other internal services are meant to consume the APIs) as well as a few _public_ endpoints (see below). In the future, we might actually want user accounts for our customers and thus define more elaborate [API rules and filters](https://pocketbase.io/docs/api-rules-and-filters/) then.
 
 To call API endpoints (admin-only at the moment), an auth token needs to be passed, which can be created as shown in [`auth.http`](apidocs/auth.http).
+
+## Authorization
+### Requirements
+By default, all operations are superuser-only, despite the following exceptions. 
+
+#### Customers
+No public access.
+
+#### Items
+* Public `list` and `view` access for items whose status is not `deleted`
+* Field `internal_note` must be filtered
+
+#### Rentals
+No public access.
+
+#### Reservations
+* Public `create` access for new reservations
+* Reservation cancellation endpoint `/reservation/cancel` is public (but requires the cancellation token, obviously)
 
 ## Roadmap
 For the long-term roadmap and future plans for out software setup, please refer to the [wiki](https://wiki.leihlokal-ka.de/software/roadmap). Currently, we're on the process of implementing stage 1.
@@ -43,10 +61,15 @@ For details, see wiki entry.
 * [x] Reservation cancellation
 * [ ] New customer-facing product catalog (Ruby)
 * [ ] New click & collect (aka. reservations) frontend (Ruby)
-* [ ] Replace legacy API / database calls for products in _LeihLokalVerwaltung_ ("_LLV_")
+* [x] Replace legacy API / database calls for items in _LeihLokalVerwaltung_ ("_LLV_")
 * [ ] Simple reservations view in _LLV_ to replace Excel sheet and [`create_click_collect_overview.py`](https://github.com/leih-lokal/scripts/blob/master/create_clickcollect_overview.py)
 * [ ] ...
 * [ ] Sunset WooCommerce and _item_-part of CouchDB
 
 ### Stage 2: The "v2"
-tbd
+* [x] Replace legacy API / database calls for items in _LLV_
+* [x] Replace legacy API / database calls for customers in _LLV_
+* [x] Replace legacy API / database calls for rentals in _LLV_
+* [x] Add new view view reservations in LLV
+* [ ] ...
+* [ ] Sunset CouchDB entirely
