@@ -58,3 +58,9 @@ onRecordDeleteExecute((e) => {
         updateItems(e.record, false, e.app)
     })
 }, 'rental')
+
+// Routes
+// ----- //
+const { handleGetRentalsCsv } = require(`${__hooks}/routes/rental`)
+
+routerAdd('get', '/api/rental/csv', handleGetRentalsCsv, $apis.requireSuperuserAuth())

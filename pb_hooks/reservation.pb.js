@@ -9,7 +9,7 @@
  Hopefully, there will be a more convenient way to accomplish this in future releases of Pocketbase.
 */
 
-const { handleGetCancel } = require(`${__hooks}/routes/reservation`)
+const { handleGetCancel, handleGetReservationsCsv } = require(`${__hooks}/routes/reservation`)
 
 // Request hooks
 // ----- //
@@ -85,6 +85,7 @@ onRecordDeleteExecute((e) => {
 // Routes
 // ----- //
 routerAdd('get', '/reservation/cancel', handleGetCancel)
+routerAdd('get', '/api/reservation/csv', handleGetReservationsCsv, $apis.requireSuperuserAuth())
 
 // Scheduled jobs
 // ----- //

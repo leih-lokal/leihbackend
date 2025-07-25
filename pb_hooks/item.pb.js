@@ -9,8 +9,8 @@
  Hopefully, there will be a more convenient way to accomplish this in future releases of Pocketbase.
 */
 
-const { handleGetCustomersCsv } = require(`${__hooks}/routes/customer`)
+const { handleGetItemsCsv } = require(`${__hooks}/routes/item`)
 
 // Routes
 // ----- //
-routerAdd('get', '/api/customer/csv', handleGetCustomersCsv, $apis.requireSuperuserAuth())
+routerAdd('get', '/api/item/csv', handleGetItemsCsv, $apis.requireSuperuserAuth())

@@ -24,7 +24,7 @@ function exportCsv(app = $app) {
 
     const fields = [
             { id: 'id', label: '_id', empty: '' },
-            { id: 'iid', label: 'ID', empty: '' },
+            { id: 'iid', label: '#', empty: '' },
             { id: 'email', label: 'E-Mail', empty: '' },
             { id: 'phone', label: 'Telefon', empty: '' },
             { id: 'firstname', label: 'Vorname', empty: '' },
