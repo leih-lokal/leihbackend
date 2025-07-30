@@ -4,6 +4,13 @@ function countActiveByItem(itemId, app = $app) {
     return 0  // TODO: implement
 }
 
+function getDueTodayRentals(app = $app) {
+    const records = app.findAllRecords('rental',
+        $dbx.exp('substr(expected_on, 0, 11) = current_date')
+    )
+    return records    
+}
+
 function exportCsv(app = $app) {
     const CSV = require(`${__hooks}/utils/csv.js`)
 
@@ -54,5 +61,6 @@ function exportCsv(app = $app) {
 
 module.exports = {
     countActiveByItem,
+    getDueTodayRentals,
     exportCsv,
 }

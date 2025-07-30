@@ -29,6 +29,15 @@ rm CHANGELOG* LICENSE* *.zip
 ## API Endpoints
 See [Web APIs reference](https://pocketbase.io/docs/api-records/) for documentation on what endpoints are available and how to use them (especially with regard to filtering, searching, etc.).
 
+### Custom routes
+* `GET` `/api/autocomplete/street` (public)
+* `GET` `/api/reservation/cancel` (public)
+* `GET` `/api/customer/csv` (superusers only)
+* `GET` `/api/item/csv` (superusers only)
+* `GET` `/api/rental/csv` (superusers only)
+* `GET` `/api/reservation/csv` (superusers only)
+* `POST` `/api/misc/emergency_closing` (superusers only)
+
 ## Authentication
 For now, we'll only have _superusers_ (see [Authentication](https://pocketbase.io/docs/authentication/)) (as primarily other internal services are meant to consume the APIs) as well as a few _public_ endpoints (see below). In the future, we might actually want user accounts for our customers and thus define more elaborate [API rules and filters](https://pocketbase.io/docs/api-rules-and-filters/) then.
 
