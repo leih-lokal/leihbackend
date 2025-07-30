@@ -8,8 +8,8 @@ function isAvailable(item) {
     if (status !== 'instock') return false
     if (copies === 1) return true
 
-    const activeRentals = rentalService.countActiveByItem(item.id)
-    const activeReservations = reservationService.countActiveByItem(item.id)
+    const activeRentals = rentalService.countActiveByItem(item.id)  // TODO: implement!
+    const activeReservations = reservationService.countActiveByItem(item.id)  // TODO: implement!
 
     return (copies - activeRentals - activeReservations) > 0;
 }

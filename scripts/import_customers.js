@@ -87,4 +87,7 @@ async function run() {
     }
 }
 
-run()
+console.log('WARNING: Make sure to turn off welcome e-mails before running the import script !!!')
+console.log('You got 10 seconds to abort this ...')
+
+setTimeout(() => run(), 10 * 1000)

@@ -22,6 +22,10 @@ rm CHANGELOG* LICENSE* *.zip
 
 4. Create admin account at http://localhost:8090/_/ (if none existing yet).
 
+## Configuration
+### Custom environment variables
+* `LL_NO_WELCOME`: Do not send welcome e-mails upon new customer registration. Default: `false`.
+
 ## API Endpoints
 See [Web APIs reference](https://pocketbase.io/docs/api-records/) for documentation on what endpoints are available and how to use them (especially with regard to filtering, searching, etc.).
 

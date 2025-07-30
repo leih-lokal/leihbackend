@@ -11,6 +11,22 @@
 
 const { handleGetCustomersCsv } = require(`${__hooks}/routes/customer`)
 
+// Record hooks
+// ----- //
+
+onRecordAfterCreateSuccess((e) => {
+    const { sendWelcomeMail } = require(`${__hooks}/utils/customer.js`)
+
+    e.next()
+
+    const envNoWelcome = $os.getenv('LL_NO_WELCOME')
+    if (envNoWelcome === '' || envNoWelcome.toLowerCase() === 'false') {
+        $app.logger().info(`Sending welcome mail to ${e.record.getString('email')} ...`)
+        sendWelcomeMail(e.record)
+    }
+}, 'customer')
+
 // Routes
 // ----- //
+
 routerAdd('get', '/api/customer/csv', handleGetCustomersCsv, $apis.requireSuperuserAuth())
