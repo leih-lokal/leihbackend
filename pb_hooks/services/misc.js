@@ -9,15 +9,19 @@ function prepareEmergencyClosing(app = $app) {
     const customers = uniqueBy(rentals.map(r => r.expandedOne('customer')), c => c.getString('email'))
     app.logger().info(`Got ${customers.length} customers with rentals that are due today.`)
 
+    let countSuccess = 0
     customers.forEach(c => {
         const customerEmail = c.getString('email')
         try {
             app.logger().info(`Sending emergency closing notification mail to ${customerEmail} ...`)
             sendEmergencyClosingMail(c)
+            countSuccess++
         } catch (e) {
             app.logger().error(`Failed to send emergency closing notification to ${customerEmail}.`)
         }
     })
+
+    return { successful: countSuccess, failed: customers.length - countSuccess }
 }
 
 module.exports = {
