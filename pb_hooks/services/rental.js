@@ -30,7 +30,7 @@ function exportCsv(app = $app) {
         { id: 'employee_back', label: 'Mitarbeiter:in zurück', empty: '' },
     ]
 
-    const result = app.findAllRecords('rental').orderBy('rented_on desc')
+    const result = app.findRecordsByFilter('rental', null, '-rented_on', -1)
     app.expandRecords(result, ['customer', 'items'])
 
     const records = result
