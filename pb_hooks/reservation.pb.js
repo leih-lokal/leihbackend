@@ -17,10 +17,38 @@ const { handleGetCancel, handleGetReservationsCsv } = require(`${__hooks}/routes
 onRecordCreateRequest((e) => {
     const { validate, autofillCustomer, sendConfirmationMail } = require(`${__hooks}/utils/reservation.js`)
 
+    // hide record information for non-authenticated users
+    // especially hide customer data to prevent leaking personal information by enumerating customer ids
+    if (!e.requestEvent.auth) {
+        e.record.hide(
+            'customer_iid',
+            'customer_name',
+            'customer_email',
+            'customer_phone',
+            'comments', 
+            'done',
+            'is_new_customer',
+            'pickup',
+            'items',
+            'collectionId', 
+            'collectionName',
+            'id',
+            'updated',
+            'expand',
+        )
+    }
+
     autofillCustomer(e.record)
     validate(e.record)
+    
     e.next()
-    sendConfirmationMail(e.record)
+
+    const recordId = e.record.get('id')
+    try {
+        sendConfirmationMail(e.record)
+    } catch(e) {
+        console.error(`Failed to send confirmation for reservation ${recordId} – ${e}`)
+    }
 }, 'reservation')
 
 onRecordUpdateRequest((e) => {
