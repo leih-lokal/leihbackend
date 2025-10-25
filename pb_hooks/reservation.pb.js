@@ -15,8 +15,9 @@ const { handleGetCancel, handleGetReservationsCsv } = require(`${__hooks}/routes
 // ----- //
 
 onRecordCreateRequest((e) => {
-    const { validate, sendConfirmationMail } = require(`${__hooks}/utils/reservation.js`)
+    const { validate, autofillCustomer, sendConfirmationMail } = require(`${__hooks}/utils/reservation.js`)
 
+    autofillCustomer(e.record)
     validate(e.record)
     e.next()
     sendConfirmationMail(e.record)

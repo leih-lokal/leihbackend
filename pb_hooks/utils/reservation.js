@@ -1,8 +1,19 @@
 // Validation
 
 function validate(r) {
+    validateFields(r)
     validateStatus(r)
     validatePickup(r)
+}
+
+function validateFields(r) {
+    // actual validation will be done during record creation, this is only to raise a specific error in case customer data couldn't be filled from iid
+    const customerIid = r.getInt('customer_iid')
+    if (customerIid) {
+        if (!r.getString('customer_name') || !r.getString('customer_phone') || !r.getString('customer_email')) {
+            throw new BadRequestError(`Invalid ID ${customerIid}, no corresponding customer found`)
+        }
+    }
 }
 
 function validateStatus(r) {
@@ -41,6 +52,25 @@ function validatePickup(r) {
 }
 
 // Business Logic
+
+function autofillCustomer(record, app = $app) {
+    const customerIid = record.getInt('customer_iid')
+    if (!customerIid) return record
+
+    let customer
+    try {
+        customer = app.findFirstRecordByData('customer', 'iid', customerIid)
+    } catch(e) {
+        return record
+    }
+
+    if (!record.getString('customer_name')) record.set('customer_name', `${customer.getString('firstname')} ${customer.getString('lastname')}`)
+    if (!record.getString('customer_phone')) record.set('customer_phone', customer.getString('phone'))
+    if (!record.getString('customer_email')) record.set('customer_email', customer.getString('email'))
+    record.set('is_new_customer', false)
+
+    return record
+}
 
 // update item statuses
 // meant to be called right before reservation is saved
@@ -102,5 +132,5 @@ function sendConfirmationMail(r) {
 }
 
 module.exports = {
-    validate, updateItems, sendConfirmationMail,
+    validate, autofillCustomer, updateItems, sendConfirmationMail,
 }
