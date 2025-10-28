@@ -21,6 +21,13 @@ function getDueTodayRentals(app = $app) {
     return records
 }
 
+function getDueTomorrowRentals(app = $app) {
+    const records = app.findAllRecords('rental',
+        $dbx.exp("substr(expected_on, 0, 11) = date(current_date, '+1 day')")
+    )
+    return records
+}
+
 function exportCsv(app = $app) {
     const CSV = require(`${__hooks}/utils/csv.js`)
 
@@ -90,9 +97,39 @@ function updateItems(recordOrItems, outOfStock, app = $app) {
     })
 }
 
+// E-Mail Sending
+
+function sendReminderMail(r) {
+    $app.expandRecord(r, ['items', 'customer'], null)
+
+    const customerEmail = r.expandedOne('customer').getString('email')
+
+    const html = $template.loadFiles(`${__hooks}/views/mail/return_reminder.html`).render({
+        items: r.expandedAll('items').map(i => ({
+            iid: i.getInt('iid'),
+            name: i.getString('name'),
+        })),
+    })
+
+    const message = new MailerMessage({
+        from: {
+            address: $app.settings().meta.senderAddress,
+            name: $app.settings().meta.senderName,
+        },
+        to: [{ address: customerEmail }],
+        subject: `[leih.lokal] Rückgabe von Gegenständen morgen fällig`,
+        html,
+    })
+
+    $app.logger().info(`Sending reminder mail for rental ${r.id} to customer ${customerEmail}.`)
+    $app.newMailClient().send(message)
+}
+
 module.exports = {
     countActiveByItem,
     getDueTodayRentals,
+    getDueTomorrowRentals,
     exportCsv,
     updateItems,
+    sendReminderMail,
 }

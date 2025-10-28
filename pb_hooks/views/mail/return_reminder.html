@@ -1,0 +1,27 @@
+Lieber Ausleiher, liebe Ausleiherin,<br>
+<br>
+morgen wird die Rückgabe eines oder mehrerer Gegenstände fällig. Wir bitten dich, die folgenden Gegenstände morgen zu den Öffnungszeiten zurückzubringen.<br>
+<br>
+Sollte die maximale Leihdauer von drei Wochen noch nicht erreicht sein, ist es ggf. möglich, die Ausleihe auf Nachfrage zu verlängern. Bitte frag hierzu während der Öffnungszeiten telefonisch oder jederzeit per Mail nach. Bitte hab Verständnis, dass, je nach Nachfrage des Gegenstandes, eine Verlängerung nicht immer möglich ist.<br>
+<br>
+Sollten wir morgen nicht geöffnet haben, gib die Gegenstände einfach am nächsten Öffnungstag ab. Weitere Informationen findest du auf unserer Webseite.<br>
+<br>
+<h3>Fällige Gegenstände:</h3>
+<ul>
+    {{ range $item := .items }}
+    <li>{{ $item.iid }} - {{ $item.name }}</li>
+    {{ end }}
+</ul>
+Liebe Grüße<br>
+das leih.lokal-Team<br>
+<br>
+www.leihlokal-ka.de<br>
+<br>
+Gerwigstr. 41, 76131 Karlsruhe<br>
+Öffnungszeiten: Mo, Do, Fr: 15-19, Sa: 10-14<br>
+Telefon: 0721/ 4700 4551<br>
+Email: info@leihlokal-ka.de<br>
+<br>
+<br>
+<i>Diese Email wurde automatisch generiert. Sie kann daher Fehler enthalten. Wir bitten dies zu entschuldigen.</i><br>
+<br>

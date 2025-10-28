@@ -64,3 +64,12 @@ onRecordDeleteExecute((e) => {
 const { handleGetRentalsCsv } = require(`${__hooks}/routes/rental`)
 
 routerAdd('get', '/api/rental/csv', handleGetRentalsCsv, $apis.requireSuperuserAuth())
+
+// Scheduled jobs
+// ----- //
+
+// note: cron dates are UTC
+cronAdd('send_return_reminders', "0 9 * * *", () => {
+    const { sendReturnReminders } = require(`${__hooks}/jobs/rental.js`)
+    sendReturnReminders()
+})

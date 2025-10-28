@@ -119,6 +119,7 @@ routerAdd('get', '/api/reservation/csv', handleGetReservationsCsv, $apis.require
 // Scheduled jobs
 // ----- //
 
+// note: cron dates are UTC
 cronAdd('clear_reservations', "0 22 * * *", () => {
     const { clearReservations } = require(`${__hooks}/jobs/reservations.js`)
     clearReservations()
