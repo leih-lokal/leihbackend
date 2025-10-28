@@ -1,14 +1,24 @@
 // Important: every write operation run as part of a transactional event hook must use the event's txApp instead of global $app. See reservation.pb.js for details.
 
 function countActiveByItem(itemId, app = $app) {
-    return 0  // TODO: implement
+    try {
+        const result = new DynamicModel({ "num_active_rentals": 0 })
+        app.db()
+            .select("num_active_rentals")
+            .from("item_rentals")
+            .where($dbx.exp("id = {:itemId}", { itemId }))
+            .one(result)
+        return result.num_active_rentals
+    } catch (e) {
+        return -1
+    }
 }
 
 function getDueTodayRentals(app = $app) {
     const records = app.findAllRecords('rental',
         $dbx.exp('substr(expected_on, 0, 11) = current_date')
     )
-    return records    
+    return records
 }
 
 function exportCsv(app = $app) {

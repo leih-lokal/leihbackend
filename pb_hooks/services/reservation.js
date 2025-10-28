@@ -1,5 +1,18 @@
 // Important: every write operation run as part of a transactional event hook must use the event's txApp instead of global $app. See reservation.pb.js for details.
 
+function countActiveByItem(itemId, app = $app) {
+    const result = new DynamicModel({ cnt: 0 })
+    app.db()
+        .select("count(*) as cnt")
+        .from("reservation")
+        .where($dbx.exists($dbx.exp(
+            "select 1 from json_each(items) where json_each.value = {:itemId}", { itemId }
+        )))
+        .andWhere($dbx.exp("done = false"))
+        .one(result)
+    return result.cnt
+}
+
 function remove(r, app = $app) {
     app.delete(r)
     app.logger().info(`Deleted reservation ${r.id} (${r.getString("iid")})`)
@@ -118,7 +131,7 @@ function autofillCustomer(record, app = $app) {
     let customer
     try {
         customer = app.findFirstRecordByData('customer', 'iid', customerIid)
-    } catch(e) {
+    } catch (e) {
         return record
     }
 
@@ -190,5 +203,12 @@ function sendConfirmationMail(r) {
 }
 
 module.exports = {
-    markAsDone, remove, exportCsv, sendConfirmationMail, validate, autofillCustomer, updateItems,
+    markAsDone,
+    remove,
+    exportCsv,
+    sendConfirmationMail,
+    validate,
+    autofillCustomer,
+    updateItems,
+    countActiveByItem,
 }
