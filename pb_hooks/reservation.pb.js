@@ -15,7 +15,7 @@ const { handleGetCancel, handleGetReservationsCsv } = require(`${__hooks}/routes
 // ----- //
 
 onRecordCreateRequest((e) => {
-    const { validate, autofillCustomer, sendConfirmationMail } = require(`${__hooks}/utils/reservation.js`)
+    const { validate, autofillCustomer, sendConfirmationMail } = require(`${__hooks}/services/reservation.js`)
 
     // hide record information for non-authenticated users
     // especially hide customer data to prevent leaking personal information by enumerating customer ids
@@ -65,7 +65,7 @@ onRecordUpdateRequest((e) => {
 
 onRecordCreateExecute((e) => {
     const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
-    const { updateItems } = require(`${__hooks}/utils/reservation.js`)
+    const { updateItems } = require(`${__hooks}/services/reservation.js`)
 
     wrapTransactional(e, (e) => {
         e.next()
@@ -75,7 +75,7 @@ onRecordCreateExecute((e) => {
 
 onRecordUpdateExecute((e) => {
     const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
-    const { updateItems } = require(`${__hooks}/utils/reservation.js`)
+    const { updateItems } = require(`${__hooks}/services/reservation.js`)
 
     wrapTransactional(e, (e) => {
         const oldRecord = $app.findRecordById('reservation', e.record.id)
@@ -102,7 +102,7 @@ onRecordUpdateExecute((e) => {
 
 onRecordDeleteExecute((e) => {
     const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
-    const { updateItems } = require(`${__hooks}/utils/reservation.js`)
+    const { updateItems } = require(`${__hooks}/services/reservation.js`)
 
     wrapTransactional(e, (e) => {
         e.next()

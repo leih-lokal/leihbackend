@@ -7,7 +7,7 @@ function getUniqueStreets(query, app = $app) {
         .select('street')
         .from('customer')
         .distinct(true)
-        
+
     if (query) sql = sql.where($dbx.like('street', query))
 
     sql.all(result)
@@ -23,24 +23,24 @@ function exportCsv(app = $app) {
     const CSV = require(`${__hooks}/utils/csv.js`)
 
     const fields = [
-            { id: 'id', label: '_id', empty: '' },
-            { id: 'iid', label: '#', empty: '' },
-            { id: 'email', label: 'E-Mail', empty: '' },
-            { id: 'phone', label: 'Telefon', empty: '' },
-            { id: 'firstname', label: 'Vorname', empty: '' },
-            { id: 'lastname', label: 'Nachname', empty: '' },
-            { id: 'street', label: 'Strasse', empty: '' },
-            { id: 'city', label: 'Stadt', empty: '' },
-            { id: 'postal_code', label: 'PLZ', empty: '' },
-            { id: 'heard', label: 'Aufmerksam geworden', empty: '' },
-            { id: 'remark', label: 'Anmerkungen', empty: '' },
-            { id: 'registered_on', label: 'Registriert am', empty: '' },
-            { id: 'renewed_on', label: 'Erneuert am', empty: '' },
-            { id: 'newsletter', label: 'Newsletter', empty: false },
-            { id: 'num_rentals', label: 'Ausleihen', empty: 0 },
-            { id: 'num_active_rentals', label: 'Aktive Ausleihen', empty: 0 },
-        ]
-    
+        { id: 'id', label: '_id', empty: '' },
+        { id: 'iid', label: '#', empty: '' },
+        { id: 'email', label: 'E-Mail', empty: '' },
+        { id: 'phone', label: 'Telefon', empty: '' },
+        { id: 'firstname', label: 'Vorname', empty: '' },
+        { id: 'lastname', label: 'Nachname', empty: '' },
+        { id: 'street', label: 'Strasse', empty: '' },
+        { id: 'city', label: 'Stadt', empty: '' },
+        { id: 'postal_code', label: 'PLZ', empty: '' },
+        { id: 'heard', label: 'Aufmerksam geworden', empty: '' },
+        { id: 'remark', label: 'Anmerkungen', empty: '' },
+        { id: 'registered_on', label: 'Registriert am', empty: '' },
+        { id: 'renewed_on', label: 'Erneuert am', empty: '' },
+        { id: 'newsletter', label: 'Newsletter', empty: false },
+        { id: 'num_rentals', label: 'Ausleihen', empty: 0 },
+        { id: 'num_active_rentals', label: 'Aktive Ausleihen', empty: 0 },
+    ]
+
     const result = arrayOf(new DynamicModel(fields.reduce((acc, field) => {
         acc[field.id] = field.empty
         return acc;
@@ -51,7 +51,54 @@ function exportCsv(app = $app) {
     return CSV.serialize({ fields, records })
 }
 
+// E-Mail Sending
+
+function sendWelcomeMail(r) {
+    const customerEmail = r.getString('email')
+
+    const html = $template.loadFiles(`${__hooks}/views/mail/customer_welcome.html`).render({
+        firstname: r.getString('firstname'),
+        lastname: r.getString('lastname'),
+        iid: r.getInt('iid'),
+    })
+
+    const message = new MailerMessage({
+        from: {
+            address: $app.settings().meta.senderAddress,
+            name: $app.settings().meta.senderName,
+        },
+        to: [{ address: customerEmail }],
+        subject: `Herzlich Willkommen im leih.lokal!`,
+        html,
+    })
+
+    $app.newMailClient().send(message)
+}
+
+function sendEmergencyClosingMail(r) {
+    const customerEmail = r.getString('email')
+
+    const html = $template.loadFiles(`${__hooks}/views/mail/emergency_closing.html`).render({
+        firstname: r.getString('firstname'),
+        lastname: r.getString('lastname'),
+    })
+
+    const message = new MailerMessage({
+        from: {
+            address: $app.settings().meta.senderAddress,
+            name: $app.settings().meta.senderName,
+        },
+        to: [{ address: customerEmail }],
+        subject: `[leih.lokal] Heute außerplanmäßig geschlossen!`,
+        html,
+    })
+
+    $app.newMailClient().send(message)
+}
+
 module.exports = {
     getUniqueStreets,
     exportCsv,
+    sendWelcomeMail,
+    sendEmergencyClosingMail,
 }

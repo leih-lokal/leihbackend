@@ -1,6 +1,6 @@
 function prepareEmergencyClosing(app = $app) {
     const { getDueTodayRentals } = require(`${__hooks}/services/rental.js`)
-    const { sendEmergencyClosingMail } = require(`${__hooks}/utils/customer.js`)
+    const { sendEmergencyClosingMail } = require(`${__hooks}/services/customer.js`)
     const { uniqueBy } = require(`${__hooks}/utils/common.js`)
 
     const rentals = getDueTodayRentals(app)

@@ -15,7 +15,7 @@ const { handleGetCustomersCsv } = require(`${__hooks}/routes/customer`)
 // ----- //
 
 onRecordAfterCreateSuccess((e) => {
-    const { sendWelcomeMail } = require(`${__hooks}/utils/customer.js`)
+    const { sendWelcomeMail } = require(`${__hooks}/services/customer.js`)
 
     e.next()
 

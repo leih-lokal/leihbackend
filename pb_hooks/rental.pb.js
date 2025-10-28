@@ -15,7 +15,7 @@
 
 onRecordCreateExecute((e) => {
     const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
-    const { updateItems } = require(`${__hooks}/utils/rental.js`)
+    const { updateItems } = require(`${__hooks}/services/rental.js`)
 
     wrapTransactional(e, (e) => {
         e.next()
@@ -25,7 +25,7 @@ onRecordCreateExecute((e) => {
 
 onRecordUpdateExecute((e) => {
     const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
-    const { updateItems } = require(`${__hooks}/utils/rental.js`)
+    const { updateItems } = require(`${__hooks}/services/rental.js`)
 
     wrapTransactional(e, (e) => {
         const oldRecord = $app.findRecordById('rental', e.record.id)
@@ -51,7 +51,7 @@ onRecordUpdateExecute((e) => {
 
 onRecordDeleteExecute((e) => {
     const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
-    const { updateItems } = require(`${__hooks}/utils/rental.js`)
+    const { updateItems } = require(`${__hooks}/services/rental.js`)
 
     wrapTransactional(e, (e) => {
         e.next()
