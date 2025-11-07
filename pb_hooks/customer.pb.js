@@ -15,12 +15,12 @@ const { handleGetCustomersCsv } = require(`${__hooks}/routes/customer`)
 // ----- //
 
 onRecordAfterCreateSuccess((e) => {
+    const { NO_WELCOME } = require(`${__hooks}/constants.js`)
     const { sendWelcomeMail } = require(`${__hooks}/services/customer.js`)
 
     e.next()
 
-    const envNoWelcome = $os.getenv('LL_NO_WELCOME')
-    if (envNoWelcome === '' || envNoWelcome.toLowerCase() === 'false') {
+    if (!NO_WELCOME) {
         $app.logger().info(`Sending welcome mail to ${e.record.getString('email')} ...`)
         sendWelcomeMail(e.record)
     }
@@ -30,3 +30,15 @@ onRecordAfterCreateSuccess((e) => {
 // ----- //
 
 routerAdd('get', '/api/customer/csv', handleGetCustomersCsv, $apis.requireSuperuserAuth())
+
+// Scheduled jobs
+// ----- //
+
+// note: cron dates are UTC
+cronAdd('run_customer_deletion', "30 8 * * *", () => {
+    const { NO_DELETE_INACTIVE } = require(`${__hooks}/constants.js`)
+    if (NO_DELETE_INACTIVE) return
+    
+    const { runDeleteInactive } = require(`${__hooks}/jobs/customer.js`)
+    runDeleteInactive()
+})

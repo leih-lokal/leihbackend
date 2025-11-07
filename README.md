@@ -24,7 +24,11 @@ rm CHANGELOG* LICENSE* *.zip
 
 ## Configuration
 ### Custom environment variables
+* `DRY_MODE`: Run the app in dry mode, i.e. don't send any mail or delete anything. Default: `true`.
+* `LL_INACTIVE_MONTHS`: Number of months after which a customer is considered inactive and schduled for deletion. Default: `24`.
+* `LL_DELETION_GRACE_PERIOD_DAYS`: Number of days to wait until deletion customer after reminder mail was sent. Default: `7`.
 * `LL_NO_WELCOME`: Do not send welcome e-mails upon new customer registration. Default: `false`.
+* `LL_NO_DELETE_INACTIVE`: Do not delete inactive customers automatically. Default: `false`.
 
 ## API Endpoints
 See [Web APIs reference](https://pocketbase.io/docs/api-records/) for documentation on what endpoints are available and how to use them (especially with regard to filtering, searching, etc.).
