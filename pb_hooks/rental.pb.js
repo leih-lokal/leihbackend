@@ -40,7 +40,7 @@ onRecordUpdateExecute((e) => {
         const itemsRemoved = itemIdsOld.filter(id => !itemIdsNew.includes(id))
         const itemsAdded = itemIdsNew.filter(id => !itemIdsOld.includes(id))
 
-        $app.logger().info(`Removed ${itemsRemoved.length} items (${itemsRemoved}) and added ${itemsAdded.length} items (${itemsAdded}) to rental ${e.record.id} as part of update`)
+        $app.logger().info(`Removed ${itemsRemoved.length} items (${itemsRemoved}) and added ${itemsAdded.length} items (${itemsAdded}) to rental ${e.record.id} as part of update.`)
 
         if (itemsRemoved.length) updateItems(itemsRemoved, false, e.app)
         if (itemsAdded.length) updateItems(itemsAdded, !hasBeenReturned, e.app)

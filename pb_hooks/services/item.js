@@ -3,7 +3,7 @@
 function setStatus(item, status, app = $app) {
     item.set('status', status)
     app.save(item)
-    app.logger().info(`Updated status of item ${item.id} to ${status}`)
+    app.logger().info(`Updated status of item ${item.id} to ${status}.`)
 }
 
 function exportCsv(app = $app) {

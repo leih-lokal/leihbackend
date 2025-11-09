@@ -21,7 +21,7 @@ onRecordAfterCreateSuccess((e) => {
     e.next()
 
     if (!NO_WELCOME) {
-        $app.logger().info(`Sending welcome mail to ${e.record.getString('email')} ...`)
+        $app.logger().info(`Sending welcome mail to ${e.record.getString('email')}.`)
         sendWelcomeMail(e.record)
     }
 }, 'customer')

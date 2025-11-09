@@ -47,7 +47,7 @@ onRecordCreateRequest((e) => {
     try {
         sendConfirmationMail(e.record)
     } catch(e) {
-        console.error(`Failed to send confirmation for reservation ${recordId} – ${e}`)
+        $app.logger().error(`Failed to send confirmation for reservation ${recordId} – ${e}.`)
     }
 }, 'reservation')
 

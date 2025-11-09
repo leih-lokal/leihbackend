@@ -9,7 +9,7 @@ function clearReservations() {
     const reservedItems = new Set(pendingReservations.map(r => r.getStringSlice('items')).flat())
     const instockItems = [...pastItems].filter(i => !reservedItems.has(i))
 
-    $app.logger().info(`Resetting rental status of ${instockItems.length} previously reserved items`)
+    $app.logger().info(`Resetting rental status of ${instockItems.length} previously reserved items.`)
 
     instockItems
         .map(id => $app.findRecordById('item', id))

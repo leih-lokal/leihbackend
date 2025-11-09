@@ -15,7 +15,7 @@ function countActiveByItem(itemId, app = $app) {
 
 function remove(r, app = $app) {
     app.delete(r)
-    app.logger().info(`Deleted reservation ${r.id} (${r.getString("iid")})`)
+    app.logger().info(`Deleted reservation ${r.id} (${r.getString("iid")}).`)
 }
 
 function markAsDone(r, app = $app) {
@@ -160,7 +160,7 @@ function updateItems(recordOrItems, reserved, app = $app) {
 
         if (reserved) return itemService.setStatus(item, 'reserved', app)
         else if (status === 'reserved') return itemService.setStatus(item, 'instock', app)
-        else app.logger().info(`Not updating status of item ${item.id}, because is not currently reserved`)
+        else app.logger().info(`Not updating status of item ${item.id}, because is not currently reserved.`)
     })
 }
 

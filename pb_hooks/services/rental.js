@@ -87,13 +87,13 @@ function updateItems(recordOrItems, outOfStock, app = $app) {
         : app.findRecordsByIds('item', recordOrItems)
 
     items.forEach(item => {
-        if (outOfStock && !itemService.isAvailable(item)) throw new InternalServerError(`Can't set status of item ${item.id} to (outofstock: ${outOfStock}), because invalid state`)
+        if (outOfStock && !itemService.isAvailable(item)) throw new InternalServerError(`Can't set status of item ${item.id} to (outofstock: ${outOfStock}), because invalid state.`)
 
         const status = item.getString('status')
 
         if (outOfStock) return itemService.setStatus(item, 'outofstock', app)
         else if (status === 'outofstock') return itemService.setStatus(item, 'instock', app)
-        else app.logger().info(`Not updating status of item ${item.id}, because is not currently out of stock`)
+        else app.logger().info(`Not updating status of item ${item.id}, because is not currently out of stock.`)
     })
 }
 
@@ -121,8 +121,8 @@ function sendReminderMail(r) {
         html,
     })
 
-    $app.logger().info(`Sending reminder mail for rental ${r.id} to customer ${customerEmail}.`)
     $app.newMailClient().send(message)
+    $app.logger().info(`Sent reminder mail for rental ${r.id} to customer ${customerEmail}.`)
 }
 
 module.exports = {

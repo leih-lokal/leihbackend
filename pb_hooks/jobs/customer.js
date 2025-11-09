@@ -12,16 +12,17 @@ function runDeleteInactive(app = $app) {
 
         if (remindedOn.isZero() || remindedOn.before(refDate.addDate(0, 0, -30))) {
             // never reminded or last reminded long time (x + 30 days) ago
-            app.logger().info(`Sending deletion reminder mail to ${email} (${c.id})`)
+            app.logger().info(`Sending deletion reminder mail to ${email} (${c.id}).`)
             customerService.sendDeletionReminderMail(c)
+            sleep(1000)
         } else if (remindedOn.before(refDate)) {
             // reminded longer than x days ago
-            app.logger().warn(`Deleting ${email} (${c.id}) after they have not responded to reminder mail within ${DELETION_GRACE_PERIOD_DAYS} days`)
+            app.logger().warn(`Deleting ${email} (${c.id}) after they have not responded to reminder mail within ${DELETION_GRACE_PERIOD_DAYS} days.`)
             if (!DRY_MODE) app.delete(c)
-            else app.logger().info(`Skipping deletion of ${c.id}, because running in dry mode`)
+            else app.logger().info(`Skipping deletion of ${c.id}, because running in dry mode.`)
         } else {
             // reminded, but less than x days ago
-            app.logger().info(`Currently waiting for reply to deletion reminder from ${email} (${c.id})`)
+            app.logger().info(`Currently waiting for reply to deletion reminder from ${email} (${c.id}).`)
         }
     }
 }
