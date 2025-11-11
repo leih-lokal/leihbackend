@@ -14,6 +14,14 @@ function countActiveByItem(itemId, app = $app) {
     }
 }
 
+function countCopiesActiveByItem(itemId, app = $app) {
+    // TODO: implement in sql instead of js
+    const activeRentals = app.findRecordsByFilter('rental', `items ~ '${itemId}' && returned_on = ''`)
+    return activeRentals
+        .map(r => r.get('requested_copies')[itemId] || 1) // 1 for legacy support
+        .reduce((acc, count) => acc + count, 0)
+}
+
 function getDueTodayRentals(app = $app) {
     const records = app.findAllRecords('rental',
         $dbx.exp('substr(expected_on, 0, 11) = current_date')
@@ -56,11 +64,17 @@ function exportCsv(app = $app) {
             const customer = r.expand.customer.publicExport()
             const items = r.expand.items.map(e => e.publicExport())
 
+            const requestedCopies = r.requested_copies || {}
+            const itemsDisplay = items.map(i => {
+                const copyCount = requestedCopies[i.id] || 1
+                return copyCount > 1 ? `${i.iid} (×${copyCount})` : i.iid
+            }).join(', ')
+
             return {
                 id: r.id,
                 customer_id: r.expand.customer.id,
                 customer_name: `${customer.firstname} ${customer.lastname}`,
-                items: items.map(i => i.iid).join(', '),
+                items: itemsDisplay,
                 deposit: r.deposit,
                 deposit_back: r.deposit_back,
                 rented_on: r.rented_on,
@@ -78,22 +92,52 @@ function exportCsv(app = $app) {
 
 // update item statuses
 // meant to be called right before rental is saved
-function updateItems(recordOrItems, outOfStock, app = $app) {
+function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
     const itemService = require(`${__hooks}/services/item.js`)
+    const reservationService = require(`${__hooks}/services/reservation.js`)
 
-    // explicitly not using record expansion here, because would yield empty result for whatever reason
-    const items = !(recordOrItems instanceof Array)
-        ? app.findRecordsByIds('item', recordOrItems.getStringSlice('items'))
-        : app.findRecordsByIds('item', recordOrItems)
+    const returnDate = rental.getDateTime('returned_on')
+    const isReturn = oldRental && !returnDate.isZero() && !returnDate.equal(oldRental.getDateTime('returned_on')) && returnDate.before(new DateTime())
+    const returnItems = isReturn || isDelete
 
-    items.forEach(item => {
-        if (outOfStock && !itemService.isAvailable(item)) throw new InternalServerError(`Can't set status of item ${item.id} to (outofstock: ${outOfStock}), because invalid state.`)
+    const requestedCopiesNew = JSON.parse(rental.getRaw('requested_copies')) || {}
+    const requestedCopiesOld = oldRental ? JSON.parse(oldRental.getRaw('requested_copies')) || {} : {}
 
-        const status = item.getString('status')
+    const itemCountsNew = rental.getStringSlice('items').reduce((acc, id) => ({ ...acc, [id]: requestedCopiesNew[id] || 1 }), {})
+    const itemCountsOld = (oldRental?.getStringSlice('items') || []).reduce((acc, id) => ({ ...acc, [id]: requestedCopiesOld[id] || 1 }), {})
 
-        if (outOfStock) return itemService.setStatus(item, 'outofstock', app)
-        else if (status === 'outofstock') return itemService.setStatus(item, 'instock', app)
-        else app.logger().info(`Not updating status of item ${item.id}, because is not currently out of stock.`)
+    const itemCountsDiff = {}
+    Object.entries(itemCountsNew).forEach(([itemId, count]) => {
+        itemCountsDiff[itemId] = !returnItems ? count : -count
+    })
+    Object.entries(itemCountsOld).forEach(([itemId, count]) => {
+        if (!(itemId in itemCountsDiff)) itemCountsDiff[itemId] = -count
+    })
+
+    const itemsAll = app.findRecordsByIds('item', Object.keys(itemCountsDiff))  // explicitly not using record expansion here, because would yield empty result for whatever reason
+
+    itemsAll.forEach(item => {
+        const itemId = item.id
+
+        const numTotal = item.getInt('copies')
+        const numRequested = itemCountsDiff[itemId]
+        const numReserved = reservationService.countActiveByItem(itemId, app)
+        const numRented = app.findRecordsByFilter('rental', `items ~ '${itemId}' && returned_on = ''`)
+            .filter(r => r.id !== rental.id)  // exclude self
+            .map(r => r.get('requested_copies')[itemId] || 1) // 1 for legacy support
+            .reduce((acc, count) => acc + count, 0)
+        const numAvailable = numTotal - numReserved - numRented
+        const numNew = numAvailable - numRequested
+
+        if (numNew == 0) {
+            app.logger().info(`Setting item ${item.id} to outofstock (${numRented} copies rented, ${numReserved} reserved, ${numAvailable} available)`)
+            itemService.setStatus(item, 'outofstock', app)
+        } else if (numNew > 0) {
+            app.logger().info(`Setting item ${item.id} to instock (${numRented} copies rented, ${numReserved} reserved, ${numAvailable} available)`)
+            itemService.setStatus(item, 'instock', app)
+        } else {
+            throw new InternalServerError(`Can't set status of item ${item.id}, because invalid state`)
+        }
     })
 }
 
@@ -104,11 +148,18 @@ function sendReminderMail(r) {
 
     const customerEmail = r.expandedOne('customer').getString('email')
 
+    // Get requested_copies to show copy counts in email
+    const requestedCopies = r.get('requested_copies') || {}
+
     const html = $template.loadFiles(`${__hooks}/views/mail/return_reminder.html`).render({
-        items: r.expandedAll('items').map(i => ({
-            iid: i.getInt('iid'),
-            name: i.getString('name'),
-        })),
+        items: r.expandedAll('items').map(i => {
+            const copyCount = requestedCopies[i.id] || 1
+            return {
+                iid: i.getInt('iid'),
+                name: i.getString('name'),
+                copies: copyCount,
+            }
+        }),
     })
 
     const message = new MailerMessage({
@@ -121,12 +172,13 @@ function sendReminderMail(r) {
         html,
     })
 
+    $app.logger().info(`Sending reminder mail for rental ${r.id} to customer ${customerEmail}.`)
     $app.newMailClient().send(message)
-    $app.logger().info(`Sent reminder mail for rental ${r.id} to customer ${customerEmail}.`)
 }
 
 module.exports = {
     countActiveByItem,
+    countCopiesActiveByItem,
     getDueTodayRentals,
     getDueTomorrowRentals,
     exportCsv,

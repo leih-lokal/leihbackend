@@ -19,7 +19,7 @@ onRecordCreateExecute((e) => {
 
     wrapTransactional(e, (e) => {
         e.next()
-        updateItems(e.record, true, e.app)
+        updateItems(e.record, null, false, e.app)
     })
 }, 'rental')
 
@@ -29,22 +29,8 @@ onRecordUpdateExecute((e) => {
 
     wrapTransactional(e, (e) => {
         const oldRecord = $app.findRecordById('rental', e.record.id)
-
         e.next()
-
-        const returnDate = e.record.getDateTime('returned_on')
-        const hasBeenReturned = !returnDate.isZero() && !returnDate.equal(oldRecord.getDateTime('returned_on')) && returnDate.before(new DateTime())
-
-        const itemIdsOld = oldRecord.getStringSlice('items')
-        const itemIdsNew = e.record.getStringSlice('items')
-        const itemsRemoved = itemIdsOld.filter(id => !itemIdsNew.includes(id))
-        const itemsAdded = itemIdsNew.filter(id => !itemIdsOld.includes(id))
-
-        $app.logger().info(`Removed ${itemsRemoved.length} items (${itemsRemoved}) and added ${itemsAdded.length} items (${itemsAdded}) to rental ${e.record.id} as part of update.`)
-
-        if (itemsRemoved.length) updateItems(itemsRemoved, false, e.app)
-        if (itemsAdded.length) updateItems(itemsAdded, !hasBeenReturned, e.app)
-        if (hasBeenReturned) updateItems(e.record, false, e.app)
+        updateItems(e.record, oldRecord, false, e.app)
     })
 
 }, 'rental')
@@ -55,7 +41,7 @@ onRecordDeleteExecute((e) => {
 
     wrapTransactional(e, (e) => {
         e.next()
-        updateItems(e.record, false, e.app)
+        updateItems(e.record, null, true, e.app)
     })
 }, 'rental')
 
