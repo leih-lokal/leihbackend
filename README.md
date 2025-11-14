@@ -65,6 +65,21 @@ No public access.
 * Public `create` access for new reservations
 * Reservation cancellation endpoint `/reservation/cancel` is public (but requires the cancellation token, obviously)
 
+## Tests
+### Requirements
+* NodeJS
+* sqlite3
+
+### Setup
+```bash
+cd tests && npm install --dev
+```
+
+### Run
+```bash
+cd tests && bash run_tests.sh
+```
+
 ## Roadmap
 For the long-term roadmap and future plans for out software setup, please refer to the [wiki](https://wiki.leihlokal-ka.de/software/roadmap). Currently, we're on the process of implementing stage 1.
 

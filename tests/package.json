@@ -1,0 +1,8 @@
+{
+  "name": "leihbackend-tests",
+  "type": "module",
+  "devDependencies": {
+    "chai": "^6.2.1",
+    "pocketbase": "^0.26.3"
+  }
+}
