@@ -1,5 +1,4 @@
 POST http://localhost:8090/api/collections/reservation/records
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb2xsZWN0aW9uSWQiOiJwYmNfMzE0MjYzNTgyMyIsImV4cCI6MTczNDQ2OTM2MiwiaWQiOiIzaWZudjhsbDhyOTkydWQiLCJyZWZyZXNoYWJsZSI6dHJ1ZSwidHlwZSI6ImF1dGgifQ.1SAbRc4bhXtnEk-92BH_PxFBWqZM5BqUnUqL2yh5gIY
 Content-Type: application/json
 
 {
