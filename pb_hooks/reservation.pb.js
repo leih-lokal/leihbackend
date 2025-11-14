@@ -69,7 +69,7 @@ onRecordCreateExecute((e) => {
 
     wrapTransactional(e, (e) => {
         e.next()
-        updateItems(e.record, true, e.app)
+        updateItems(e.record, null, false, e.app)
     })
 }, 'reservation')
 
@@ -84,18 +84,7 @@ onRecordUpdateExecute((e) => {
 
         // Note: "undoing" a closed transaction will not update item statuses accordingly.
         // Instead, undoing should be prevented beforehand on a request level
-        const done = e.record.getBool('done')
-
-        const itemIdsOld = oldRecord.getStringSlice('items')
-        const itemIdsNew = e.record.getStringSlice('items')
-        const itemsRemoved = itemIdsOld.filter(id => !itemIdsNew.includes(id))
-        const itemsAdded = itemIdsNew.filter(id => !itemIdsOld.includes(id))
-
-        $app.logger().info(`Removed ${itemsRemoved.length} items (${itemsRemoved}) and added ${itemsAdded.length} items (${itemsAdded}) to reservation ${e.record.id} as part of update`)
-
-        if (itemsRemoved.length) updateItems(itemsRemoved, false, e.app)
-        if (itemsAdded.length) updateItems(itemsAdded, !done, e.app)
-        if (done) updateItems(e.record, false, e.app)
+        updateItems(e.record, oldRecord, false, e.app)
     })
 
 }, 'reservation')
@@ -106,7 +95,7 @@ onRecordDeleteExecute((e) => {
 
     wrapTransactional(e, (e) => {
         e.next()
-        updateItems(e.record, false, e.app)
+        updateItems(e.record, null, true, e.app)
     })
 }, 'reservation')
 

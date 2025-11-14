@@ -93,6 +93,8 @@ function exportCsv(app = $app) {
 // update item statuses
 // meant to be called right before rental is saved
 function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
+    // TODO: handle (or forbid) the case where a rental is returned and it's item list is updated at the same time (currently unhandled)
+
     const itemService = require(`${__hooks}/services/item.js`)
     const reservationService = require(`${__hooks}/services/reservation.js`)
 
@@ -121,20 +123,31 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
 
         const numTotal = item.getInt('copies')
         const numRequested = itemCountsDiff[itemId]
-        const numReserved = reservationService.countActiveByItem(itemId, app)
         const numRented = app.findRecordsByFilter('rental', `items ~ '${itemId}' && returned_on = ''`)
             .filter(r => r.id !== rental.id)  // exclude self
             .map(r => r.get('requested_copies')[itemId] || 1) // 1 for legacy support
             .reduce((acc, count) => acc + count, 0)
-        const numAvailable = numTotal - numReserved - numRented
+        // For simplicity, we currently don't consider the number of copies for reservations.
+        // If an item is reserved, we implicitly assume all copies of it to be served, otherwise things get confusing
+        // (e.g. customer reserves an item, but status on the website is still shown as available, etc.).
+        // Accordingly, numReservations should actually never be greater than 1.
+        const numReservations = reservationService.countActiveByItem(itemId, app)
+        // We're not subtracting reservations here, because when creating a new rental to fulfill an existing reservation, we need the item to be considered available.
+        // We assume that rentals are only created by responsible and attentative employees who check the reservations table first.        
+        const numAvailable = numTotal - numRented
         const numNew = numAvailable - numRequested
 
+
         if (numNew == 0) {
-            app.logger().info(`Setting item ${item.id} to outofstock (${numRented} copies rented, ${numReserved} reserved, ${numAvailable} available)`)
+            app.logger().info(`Setting item ${item.id} to outofstock (${numRented} copies rented, ${numAvailable} available, ${numReservations} active reservations)`)
             itemService.setStatus(item, 'outofstock', app)
         } else if (numNew > 0) {
-            app.logger().info(`Setting item ${item.id} to instock (${numRented} copies rented, ${numReserved} reserved, ${numAvailable} available)`)
-            itemService.setStatus(item, 'instock', app)
+            // If a rental is returned (or deleted from the database) and we do have an active reservation, reset the item's availability status to "reserved" to avoid inconsistencies.
+            // To make it "instock" again, clear the reservation entry or mark it as done.
+            const status = numReservations > 0 ? 'reserved' : 'instock'
+
+            app.logger().info(`Setting item ${item.id} to ${status} (${numRented} copies rented, ${numAvailable} available, ${numReservations} active reservations)`)
+            itemService.setStatus(item, status, app)
         } else {
             throw new InternalServerError(`Can't set status of item ${item.id}, because invalid state`)
         }
