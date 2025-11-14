@@ -15,9 +15,10 @@
 
 onRecordCreateExecute((e) => {
     const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
-    const { updateItems } = require(`${__hooks}/services/rental.js`)
+    const { validate, updateItems } = require(`${__hooks}/services/rental.js`)
 
     wrapTransactional(e, (e) => {
+        validate(e.record)
         e.next()
         updateItems(e.record, null, false, e.app)
     })
@@ -28,6 +29,7 @@ onRecordUpdateExecute((e) => {
     const { updateItems } = require(`${__hooks}/services/rental.js`)
 
     wrapTransactional(e, (e) => {
+        // TODO: validate status of potentially newly added items
         const oldRecord = $app.findRecordById('rental', e.record.id)
         e.next()
         updateItems(e.record, oldRecord, false, e.app)

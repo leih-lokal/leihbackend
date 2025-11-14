@@ -32,7 +32,6 @@ onRecordCreateRequest((e) => {
             'items',
             'collectionId', 
             'collectionName',
-            'id',
             'updated',
             'expand',
         )

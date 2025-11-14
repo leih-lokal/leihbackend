@@ -90,6 +90,24 @@ function exportCsv(app = $app) {
     return CSV.serialize({ fields, records })
 }
 
+function validate(r) {
+    validateStatus(r)
+}
+
+function validateStatus(r) {
+    const items = $app.findRecordsByIds('item', r.getStringSlice('items'))  // explicitly not using record expansion here, because would yield empty result for whatever reason
+    const requestedCopies = JSON.parse(r.getRaw('requested_copies'))
+
+    for (const item of items) {
+        if (item.getString('status') !== 'instock') throw new BadRequestError(`Item ${item.getInt('iid')} is not available for rental.`)
+
+        const numTotal = item.getInt('copies')
+        const numAvailable = numTotal - countCopiesActiveByItem(item)
+        const numRequested = requestedCopies[item.id]
+        if (numRequested > numAvailable) throw new BadRequestError(`Item ${item.getInt('iid')} is not available for rental.`)
+    }
+}
+
 // update item statuses
 // meant to be called right before rental is saved
 function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
@@ -99,7 +117,7 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
     const reservationService = require(`${__hooks}/services/reservation.js`)
 
     const returnDate = rental.getDateTime('returned_on')
-    const isReturn = oldRental && !returnDate.isZero() && !returnDate.equal(oldRental.getDateTime('returned_on')) && returnDate.before(new DateTime())
+    const isReturn = !returnDate.isZero() && !returnDate.equal(oldRental.getDateTime('returned_on')) && returnDate.before(new DateTime())
     const returnItems = isReturn || isDelete
 
     const requestedCopiesNew = JSON.parse(rental.getRaw('requested_copies')) || {}
@@ -120,9 +138,13 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
 
     itemsAll.forEach(item => {
         const itemId = item.id
+        const itemStatus = item.getString('status')
 
         const numTotal = item.getInt('copies')
         const numRequested = itemCountsDiff[itemId]
+
+        if (numRequested > 0 && itemStatus !== 'instock') throw new BadRequestError(`Can't rent item ${itemId} (${item.getInt('iid')}), because not in stock`)
+
         const numRented = app.findRecordsByFilter('rental', `items ~ '${itemId}' && returned_on = ''`)
             .filter(r => r.id !== rental.id)  // exclude self
             .map(r => r.get('requested_copies')[itemId] || 1) // 1 for legacy support
@@ -135,13 +157,14 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
         // We're not subtracting reservations here, because when creating a new rental to fulfill an existing reservation, we need the item to be considered available.
         // We assume that rentals are only created by responsible and attentative employees who check the reservations table first.        
         const numAvailable = numTotal - numRented
-        const numNew = numAvailable - numRequested
+        const numRemaining = numAvailable - numRequested
 
-
-        if (numNew == 0) {
+        if (numRemaining == 0) {
             app.logger().info(`Setting item ${item.id} to outofstock (${numRented} copies rented, ${numAvailable} available, ${numReservations} active reservations)`)
             itemService.setStatus(item, 'outofstock', app)
-        } else if (numNew > 0) {
+        } else if (numRemaining > 0) {
+            if (!(['outofstock', 'instock', 'reserved']).includes(itemStatus)) return  // don't make repairing, deleted, etc. available again when old rental was deleted or sth.
+
             // If a rental is returned (or deleted from the database) and we do have an active reservation, reset the item's availability status to "reserved" to avoid inconsistencies.
             // To make it "instock" again, clear the reservation entry or mark it as done.
             const status = numReservations > 0 ? 'reserved' : 'instock'
@@ -190,6 +213,7 @@ function sendReminderMail(r) {
 }
 
 module.exports = {
+    validate,
     countActiveByItem,
     countCopiesActiveByItem,
     getDueTodayRentals,
