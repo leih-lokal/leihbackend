@@ -1,36 +1,31 @@
-#!/usr/bin/env node
-
-import { getAnonymousClient, getClient } from './base.js'
+import * as chai from 'chai'
+import chaiAsPromised from 'chai-as-promised'
+import {getAnonymousClient, getClient} from './base.js'
 import {assert} from 'chai'
-import path from 'path'
+import {describe, it, before} from 'mocha'
 
-let client
-let anonymousClient
+chai.use(chaiAsPromised)
 
-async function run() {
-    client = await getClient()
-    anonymousClient = await getAnonymousClient()
+describe('Items', () => {
+    let client
+    let anonymousClient
 
-    await testPublicItems()
-    await testPublicItemsStatusFilter()
-
-    console.log(`${path.basename(import.meta.filename).slice(0, -3)} passed ✅`)
-}
-
-async function testPublicItems() {
-    console.log(`Running testPublicItems`)
-
-    const items = await anonymousClient.collection('item_public').getFullList()
-    assert.deepEqual(items.map(i => i.iid), [1000, 1001, 1002])
-}
-
-async function testPublicItemsStatusFilter() {
-    console.log(`Running testPublicItemsStatusFilter`)
-
-    const items = await anonymousClient.collection('item_public').getFullList({
-        filter: 'status="instock"'
+    before(async () => {
+        client = await getClient()
+        anonymousClient = await getAnonymousClient()
     })
-    assert.deepEqual(items.map(i => i.iid), [1000, 1001])
-}
 
-await run()
+    describe('Public items', () => {
+        it('should list all', async () => {
+            const items = await anonymousClient.collection('item_public').getFullList()
+            assert.deepEqual(items.map(i => i.iid), [1000, 1001, 1002])
+        })
+
+        it('should filter by status', async () => {
+            const items = await anonymousClient.collection('item_public').getFullList({
+                filter: 'status="instock"'
+            })
+            assert.deepEqual(items.map(i => i.iid), [1000, 1001])
+        })
+    })
+})

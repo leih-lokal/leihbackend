@@ -1,20 +1,20 @@
-#!/usr/bin/env node
+import * as chai from 'chai'
+import chaiAsPromised from 'chai-as-promised'
+import {getAnonymousClient, getClient} from './base.js'
+import {assert} from 'chai'
+import {describe, it, before} from 'mocha'
 
-import { getAnonymousClient, getClient } from './base.js'
-import { assert } from 'chai'
-import path from 'path'
+chai.use(chaiAsPromised)
 
-let client
-let anonymousClient
+describe('Misc', () => {
+    let client
+    let anonymousClient
 
-async function run() {
-    client = await getClient()
-    anonymousClient = await getAnonymousClient()
+    before(async () => {
+        client = await getClient()
+        anonymousClient = await getAnonymousClient()
+    })
 
-    console.log(`${path.basename(import.meta.filename).slice(0, -3)} passed ✅`)
-}
-
-// TODO: test emergency closing
-// TODO: test stats endpoint
-
-await run()
+    it('should handle emergency closing')
+    it('should return stats from the stats endpoint')
+})

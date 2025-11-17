@@ -1,20 +1,20 @@
-#!/usr/bin/env node
+import * as chai from 'chai'
+import chaiAsPromised from 'chai-as-promised'
+import {getAnonymousClient, getClient} from './base.js'
+import {assert} from 'chai'
+import {describe, it, before} from 'mocha'
 
-import { getAnonymousClient, getClient } from './base.js'
-import { assert } from 'chai'
-import path from 'path'
+chai.use(chaiAsPromised)
 
-let client
-let anonymousClient
+describe('Customer', () => {
+    let client
+    let anonymousClient
 
-async function run() {
-    client = await getClient()
-    anonymousClient = await getAnonymousClient()
+    before(async () => {
+        client = await getClient()
+        anonymousClient = await getAnonymousClient()
+    })
 
-    console.log(`${path.basename(import.meta.filename).slice(0, -3)} passed ✅`)
-}
-
-// TODO: test welcome mail
-// TODO: test auto-deletion
-
-await run()
+    it('should send a welcome mail to new customers')  // TODO
+    it('should run customer auto-deletion')  // TODO
+})

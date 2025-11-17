@@ -1,8 +1,13 @@
 {
   "name": "leihbackend-tests",
   "type": "module",
+  "scripts": {
+    "test": "mocha ./test_*.js"
+  },
   "devDependencies": {
     "chai": "^6.2.1",
+    "chai-as-promised": "^8.0.2",
+    "mocha": "^11.7.5",
     "pocketbase": "^0.26.3"
   }
 }
