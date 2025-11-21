@@ -103,7 +103,9 @@ function validateStatus(r) {
 
         const numTotal = item.getInt('copies')
         const numAvailable = numTotal - countCopiesActiveByItem(item)
-        const numRequested = requestedCopies[item.id]
+        const numRequested = (requestedCopies && (item.id in requestedCopies))
+            ? requestedCopies[item.id]
+            : 1  // backwards compatibility
         if (numRequested > numAvailable) throw new BadRequestError(`Item ${item.getInt('iid')} is not available for rental.`)
     }
 }
@@ -131,14 +133,19 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
         itemCountsDiff[itemId] = !returnItems ? count : -count
     })
     Object.entries(itemCountsOld).forEach(([itemId, count]) => {
-        if (!(itemId in itemCountsDiff)) itemCountsDiff[itemId] = -count
+        if (!(itemId in itemCountsDiff)) itemCountsDiff[itemId] = 0
+        itemCountsDiff[itemId] -= count
     })
+
+    console.log(JSON.stringify(itemCountsOld))
+    console.log(JSON.stringify(itemCountsNew))
 
     const itemsAll = app.findRecordsByIds('item', Object.keys(itemCountsDiff))  // explicitly not using record expansion here, because would yield empty result for whatever reason
 
     itemsAll.forEach(item => {
         const itemId = item.id
         const itemStatus = item.getString('status')
+        const isUpdate = item.id in itemCountsOld  // whether the rental is updated (not created new) and this item was included before
 
         const numTotal = item.getInt('copies')
         const numRequested = itemCountsDiff[itemId]
@@ -146,8 +153,9 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
         if (numRequested > 0 && itemStatus !== 'instock') throw new BadRequestError(`Can't rent item ${itemId} (${item.getInt('iid')}), because not in stock`)
 
         const numRented = app.findRecordsByFilter('rental', `items ~ '${itemId}' && returned_on = ''`)
-            .filter(r => r.id !== rental.id)  // exclude self
-            .map(r => r.get('requested_copies')[itemId] || 1) // 1 for legacy support
+            .filter(r => isUpdate || r.id !== rental.id)  // exclude self for new rentals (record already exists at this point)
+            .map(r => JSON.parse(r.getRaw('requested_copies')))
+            .map(rc => rc ? rc[itemId] : 1) // 1 for legacy support
             .reduce((acc, count) => acc + count, 0)
         // For simplicity, we currently don't consider the number of copies for reservations.
         // If an item is reserved, we implicitly assume all copies of it to be served, otherwise things get confusing
@@ -158,6 +166,13 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
         // We assume that rentals are only created by responsible and attentative employees who check the reservations table first.        
         const numAvailable = numTotal - numRented
         const numRemaining = numAvailable - numRequested
+
+        console.log(itemId)
+        console.log('total', numTotal)
+        console.log('requested', numRequested)
+        console.log('rented', numRented)
+        console.log('available', numAvailable)
+        console.log('remaining', numRemaining)
 
         if (numRemaining == 0) {
             app.logger().info(`Setting item ${item.id} to outofstock (${numRented} copies rented, ${numAvailable} available, ${numReservations} active reservations)`)

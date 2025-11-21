@@ -137,6 +137,32 @@ describe('Rentals', () => {
             await client.collection('item').update(item1.id, {status: 'instock'}) // clean up
         })
 
+        it('should not update item status if rental properties edited', async () => {
+            let rental = await client.collection('rental').create({
+                customer: customer1.id,
+                items: [item1.id],
+                rented_on: new Date(),
+                requested_copies: {
+                    [item1.id]: 3, // item has 3 copies available (4 total, one rented by jane)
+                }
+            })
+
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'outofstock')
+
+            await client.collection('rental').update(rental.id, {
+                remark: 'Blaah',
+            })
+
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'outofstock')
+
+            await client.collection('rental').delete(rental.id) // clean up
+
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'instock')
+        })
+
         it('should update item stock correctly when a rental is changed', async () => {
             let rental = await client.collection('rental').create({
                 customer: customer1.id,
@@ -153,7 +179,8 @@ describe('Rentals', () => {
             assert.equal(item2.status, 'instock')
 
             await client.collection('rental').update(rental.id, {
-                items: [item2.id]
+                items: [item2.id],
+                remark: 'Blaah'
             })
 
             item1 = await client.collection('item').getOne(item1.id)
@@ -165,6 +192,29 @@ describe('Rentals', () => {
 
             item2 = await client.collection('item').getOne(item2.id)
             assert.equal(item2.status, 'instock')
+        })
+
+        it('should update item stock when returning rental', async () => {
+            let rental = await client.collection('rental').create({
+                customer: customer1.id,
+                items: [item1.id],
+                rented_on: new Date(),
+                requested_copies: {
+                    [item1.id]: 3,
+                }
+            })
+
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'outofstock')
+
+            await client.collection('rental').update(rental.id, {
+                returned_on: new Date(),
+            })
+
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'instock')
+
+            await client.collection('rental').delete(rental.id) // clean up
         })
     })
 })

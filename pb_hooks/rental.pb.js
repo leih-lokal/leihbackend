@@ -42,8 +42,9 @@ onRecordDeleteExecute((e) => {
     const { updateItems } = require(`${__hooks}/services/rental.js`)
 
     wrapTransactional(e, (e) => {
+        const oldRecord = $app.findRecordById('rental', e.record.id)
         e.next()
-        updateItems(e.record, null, true, e.app)
+        updateItems(e.record, oldRecord, true, e.app)
     })
 }, 'rental')
 
