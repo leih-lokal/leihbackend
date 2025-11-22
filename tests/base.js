@@ -47,6 +47,7 @@ async function configureSmtp(client, { host, port, username, password }) {
 }
 
 async function crateFakeMailAccount() {
+    console.log('Creating fake e-mail account at ethereal.email')
     const account = await nodemailer.createTestAccount()
     return {
         smtp: {

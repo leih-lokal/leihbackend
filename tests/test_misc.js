@@ -15,6 +15,6 @@ describe('Misc', () => {
         anonymousClient = await getAnonymousClient()
     })
 
-    it('should handle emergency closing')
-    it('should return stats from the stats endpoint')
+    it('should handle emergency closing')  // TODO
+    it('should return stats from the stats endpoint')  // TODO
 })

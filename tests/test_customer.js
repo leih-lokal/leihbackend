@@ -29,6 +29,18 @@ describe('Customer', () => {
         await purgeInbox(imapClient)
     })
 
+    it('should fail to create customer with an existing iid', async () => {
+        const promise = client.collection('customer').create({
+            iid: 1000,
+            firstname: 'Justus',
+            lastname: 'Jonas',
+            email: 'justusjonas@leihlokal-ka.de',
+            phone: '+49123456789012',
+            registered_on: new Date(),
+        })
+        await assert.isRejected(promise)
+    })
+
     it('should send a welcome mail to new customers', async () => {
         let testCustomer = await client.collection('customer').create({
             iid: 2000,
@@ -45,10 +57,10 @@ describe('Customer', () => {
         assert.lengthOf(messages, 1)
         assert.equal(messages[0].sender, USERNAME)
         assert.equal(messages[0].subject, 'Herzlich Willkommen im leih.lokal!')
-        assert.deepEqual(messages[0].recipients, [ testCustomer.email ])
+        assert.deepEqual(messages[0].recipients, [testCustomer.email])
 
         await client.collection('customer').delete(testCustomer.id)
     })
 
-    it('should run customer auto-deletion')  // TODO
+    it('should run customer auto-deletion')  // TODO (https://pocketbase.io/docs/api-crons/#run-cron-job)
 })
