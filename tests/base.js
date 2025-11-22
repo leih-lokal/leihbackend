@@ -8,6 +8,7 @@ import { tmpdir } from 'os'
 import { fetchMessages, deleteAllMessages, connectImap } from './lib/imap.js'
 import { readFile, writeFile, access } from 'fs/promises'
 import fs from 'fs'
+import Imap from 'node-imap'
 
 const SMTP_CREDENTIALS_PATH = `${tmpdir()}/.leihbackend_smtp.json`
 
@@ -38,7 +39,10 @@ async function configureSmtp(client, { host, port, username, password }) {
             port,
             username,
             password
-        }
+        },
+        meta: {
+            senderAddress: USERNAME,
+        },
     })
 }
 
@@ -68,19 +72,18 @@ async function getFakeMailAccount(force) {
     return JSON.parse(await readFile(SMTP_CREDENTIALS_PATH))
 }
 
-async function purgeInbox(imapConfig) {
-    imapConfig = adaptImapConfig(imapConfig)
-    const imapClient = await connectImap(imapConfig)
+async function purgeInbox(imap) {
+    const imapClient = (imap instanceof Imap) ? imap : await initImap(imap)
     await deleteAllMessages(imapClient)
-    imapClient.end()
 }
 
-async function listInbox(imapConfig) {
-    imapConfig = adaptImapConfig(imapConfig)
-    const imapClient = await connectImap(imapConfig)
-    const messages = await fetchMessages(imapClient, 'INBOX')
-    imapClient.end()
-    return messages
+async function listInbox(imap) {
+    const imapClient = (imap instanceof Imap) ? imap : await initImap(imap)
+    return await fetchMessages(imapClient, 'INBOX')
+}
+
+async function initImap(config) {
+    return await connectImap(adaptImapConfig(config))
 }
 
 function adaptImapConfig({ host, port, username, password }) {
@@ -94,10 +97,13 @@ function adaptImapConfig({ host, port, username, password }) {
 }
 
 export {
+    USERNAME,
+    PASSWORD,
     getClient,
     getAnonymousClient,
     configureSmtp,
     getFakeMailAccount,
+    initImap,
     purgeInbox,
     listInbox,
 }

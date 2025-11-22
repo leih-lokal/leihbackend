@@ -47,10 +47,10 @@ function fetchMessages(imap, mailbox) {
             const messages = []
 
             f.on('message', (msg, seqno) => {
-                let messageUid
 
                 msg.on('attributes', (attrs) => {
-                    messageUid = attrs.uid
+                    // apparently called after 'body' event
+                    messages.filter(m => m.seqno === seqno).forEach(m => m.uid = attrs.uid)
                 })
 
                 msg.on('body', (stream, info) => {
@@ -70,7 +70,8 @@ function fetchMessages(imap, mailbox) {
                         const subject = headers.subject ? headers.subject[0] : 'No Subject'
 
                         messages.push({
-                            uid: messageUid,
+                            uid: null,
+                            seqno: info.seqno,
                             sender: sender,
                             recipients: recipients,
                             subject: subject

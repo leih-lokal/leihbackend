@@ -35,11 +35,12 @@ echo "Loading fixtures ..."
 sqlite3 $DATA_DIR/data.db < "$SCRIPT_DIR/seed.sql"
 
 echo "Starting Pocketbase ..."
+export DRY_MODE=false  # to test emailing functionality
 nohup $POCKETBASE_PATH --dir $DATA_DIR --hooksDir $HOOKS_PATH serve > /dev/null 2>&1 &
 PB_PID=$!
 echo "Pocketbase started (PID: $PB_PID)"
 
-sleep 1
+sleep 5
 
 echo "Starting tests ..."
 cd $SCRIPT_DIR
