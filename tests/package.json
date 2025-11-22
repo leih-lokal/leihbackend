@@ -8,6 +8,8 @@
     "chai": "^6.2.1",
     "chai-as-promised": "^8.0.2",
     "mocha": "^11.7.5",
+    "node-imap": "^0.9.6",
+    "nodemailer": "^7.0.10",
     "pocketbase": "^0.26.3"
   }
 }
