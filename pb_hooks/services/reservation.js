@@ -180,6 +180,7 @@ function updateItems(reservation, oldReservation = null, isDelete = false, app =
 
 function sendConfirmationMail(r) {
     const { fmtDateTime } = require(`${__hooks}/utils/common.js`)
+    const { DRY_MODE } = require(`${__hooks}/constants.js`)
 
     $app.expandRecord(r, ['items'], null)
 
@@ -206,12 +207,36 @@ function sendConfirmationMail(r) {
             address: $app.settings().meta.senderAddress,
             name: $app.settings().meta.senderName,
         },
-        to: [{ address: r.getString('customer_email') }],
-        subject: `Deine Reservierung für ${pickupDateStr} erhalten`,
+        to: [{ address: customerEmail }],
+        subject: `Wir haben deine Reservierung für ${pickupDateStr} erhalten`,
         html,
     })
 
-    $app.newMailClient().send(message)
+    if (!DRY_MODE) $app.newMailClient().send(message)
+}
+
+function sendCancellationMail(r) {
+    const { fmtDateTime } = require(`${__hooks}/utils/common.js`)
+    const { DRY_MODE } = require(`${__hooks}/constants.js`)
+
+    const customerEmail = r.getString('customer_email')
+    const pickupDateStr = fmtDateTime(r.getDateTime('pickup'))
+
+    const html = $template.loadFiles(`${__hooks}/views/mail/reservation_cancellation.html`).render({
+        pickup: pickupDateStr,
+    })
+
+    const message = new MailerMessage({
+        from: {
+            address: $app.settings().meta.senderAddress,
+            name: $app.settings().meta.senderName,
+        },
+        to: [{ address: customerEmail }],
+        subject: `Deine Reservierung für ${pickupDateStr} wurde storniert`,
+        html,
+    })
+
+    if (!DRY_MODE) $app.newMailClient().send(message)
 }
 
 module.exports = {
@@ -219,6 +244,7 @@ module.exports = {
     remove,
     exportCsv,
     sendConfirmationMail,
+    sendCancellationMail,
     validate,
     autofillCustomer,
     updateItems,

@@ -1,5 +1,5 @@
 function handleGetCancel(e) {
-    const {remove: deleteReservation} = require(`${__hooks}/services/reservation`)
+    const {remove: deleteReservation, sendCancellationMail} = require(`${__hooks}/services/reservation`)
     const {fmtDateTime} = require(`${__hooks}/utils/common.js`)
 
     const token = e.request.url.query().get('token')
@@ -12,6 +12,12 @@ function handleGetCancel(e) {
     )
     const date = fmtDateTime(reservation.getDateTime('pickup'))
     deleteReservation(reservation)
+
+    try {
+        sendCancellationMail(reservation)
+    } catch(e) {
+        $app.logger().error(`Failed to send cancellation mail for reservation ${reservation.id} – ${e}.`)
+    }
 
     const html = $template.loadFiles(
         `${__hooks}/views/layout.html`,
