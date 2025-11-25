@@ -40,6 +40,13 @@ describe('Reservations', () => {
         await purgeInbox(imapClient)
     })
 
+    describe('General', () => {
+        it('should deny access to reservations for anonymous users', async () => {
+            let promise = anonymousClient.collection('reservation').getFullList()
+            await assert.isRejected(promise)
+        })
+    })
+
     describe('Creation', () => {
         it('should create a reservation for an existing customer', async () => {
             let reservation = await anonymousClient.collection('reservation').create({

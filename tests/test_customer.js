@@ -29,6 +29,11 @@ describe('Customer', () => {
         await purgeInbox(imapClient)
     })
 
+    it('should deny access to customers for anonymous users', async () => {
+        let promise = anonymousClient.collection('customer').getFullList()
+        await assert.isRejected(promise)
+    })
+
     it('should fail to create customer with an existing iid', async () => {
         const promise = client.collection('customer').create({
             iid: 1000,

@@ -24,6 +24,13 @@ describe('Rentals', () => {
         customer2 = await client.collection('customer').getFirstListItem('iid=1001') // jane
     })
 
+    describe('General', () => {
+        it('should deny access to rentals for anonymous users', async () => {
+            let promise = anonymousClient.collection('rental').getFullList()
+            await assert.isRejected(promise)
+        })
+    })
+
     describe('Statistics', () => {
         it('should return correct item rental statistics', async () => {
             let stats = await client.collection('item_rentals').getFullList()

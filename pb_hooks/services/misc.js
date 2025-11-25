@@ -24,6 +24,8 @@ function prepareEmergencyClosing(app = $app) {
         }
     })
 
+    // TODO (minor): update return date to next opening day
+
     return { successful: countSuccess, failed: customers.length - countSuccess }
 }
 
