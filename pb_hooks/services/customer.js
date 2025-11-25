@@ -58,12 +58,9 @@ function getInactive(offsetMonths = 24, app = $app) {
     const refDate = new DateTime().addDate(0, -offsetMonths, 0)
 
     app.recordQuery('customer')
-        .join('inner join', 'rental', $dbx.exp('customer.id = rental.customer'))
-        .where($dbx.exp('rental.returned_on < {:refDate}', { refDate }))
-        .andWhere($dbx.or(
-            $dbx.or($dbx.exp("customer.renewed_on = ''"), $dbx.exp("customer.renewed_on is null")),
-            $dbx.exp("customer.renewed_on < {:refDate}", { refDate }),
-        ))
+        .leftJoin("rental", $dbx.exp("customer.id = rental.customer"))
+        .groupBy("customer.id")
+        .having($dbx.exp("COALESCE(MAX(rental.rented_on), customer.registered_on, customer.renewed_on) < {:refDate}", { refDate }))
         .distinct(true)
         .all(records)
 

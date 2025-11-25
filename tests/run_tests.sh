@@ -16,7 +16,7 @@ cleanup() {
         kill $PB_PID
         wait $PB_PID 2>/dev/null
     fi
-    
+
     echo "Cleaning up data dir: $DATA_DIR"
     rm -r "$DATA_DIR"
 }

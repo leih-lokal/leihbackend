@@ -18,6 +18,16 @@ Date.prototype.addHours = function(h) {
   return this;
 }
 
+Date.prototype.addDays = function(d) {
+  this.setTime(this.getTime() + (d*24*60*60*1000));
+  return this;
+}
+
+Date.prototype.addYears = function(y) {
+  this.setFullYear(this.getFullYear() + y);
+  return this;
+}
+
 async function fileExists(file) {
     try {
         await access(file, fs.constants.F_OK)
@@ -38,7 +48,7 @@ async function getAnonymousClient() {
 }
 
 async function configureSmtp(client, { host, port, username, password }) {
-    client.settings.update({
+    await client.settings.update({
         smtp: {
             enabled: true,
             host,
