@@ -3,6 +3,7 @@ import chaiAsPromised from 'chai-as-promised'
 import { getAnonymousClient, getClient, initImap, listInbox, getFakeMailAccount, configureSmtp, USERNAME, purgeInbox } from './base.js'
 import { assert } from 'chai'
 import { describe, it, before } from 'mocha'
+import { setTimeout } from 'timers/promises'
 
 chai.use(chaiAsPromised)
 
@@ -67,5 +68,45 @@ describe('Customer', () => {
         await client.collection('customer').delete(testCustomer.id)
     })
 
-    it('should run customer auto-deletion')  // TODO (https://pocketbase.io/docs/api-crons/#run-cron-job)
+    describe('Auto-deletion', () => {
+        it('should send deletion notice to customer registered long ago', async () => {
+            let customer = await client.collection('customer').create({
+                iid: 1500,
+                firstname: 'Patrick',
+                lastname: 'Star',
+                email: 'patrick@crustycrab.com',
+                phone: '012345678910',
+                registered_on: new Date().addYears(-2).addDays(-2),
+            })
+            await purgeInbox(imapClient)
+
+            const crons = await client.crons.getFullList()
+            assert.includeDeepMembers(crons, [
+                {
+                    id: 'run_customer_deletion',
+                    expression: '30 8 * * *',
+                },
+            ])
+
+            await client.crons.run('run_customer_deletion')
+            await setTimeout(1000)
+
+            let messages = await listInbox(imapClient)
+            assert.lengthOf(messages, 1)
+            assert.equal(messages[0].sender, USERNAME)
+            assert.equal(messages[0].subject, `[leih.lokal] Löschung Ihrer Daten im leih.lokal nach Inaktivität (Kunden-Nr. ${customer.iid})`)
+            assert.deepEqual(messages[0].recipients, [customer.email])
+
+            // TODO: check logs
+            // TODO: check deletetion_reminder_sent field
+
+            await client.collection('customer').delete(customer.id)
+        })
+
+        it('should send deletion notice to customers with recent rentals') // TODO
+
+        it('should do nothing while waiting for customers reply')  // TODO
+
+        it('should delete customer after no response to deletion notice')  // TODO
+    })
 })
