@@ -1,0 +1,27 @@
+meta {
+  name: Authenticate
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{API_BASE}}/collections/_superusers/auth-with-password
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "identity": "{{USERNAME}}",
+    "password": "{{PASSWORD}}"
+  }
+}
+
+vars:post-response {
+  token: res.body.token
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

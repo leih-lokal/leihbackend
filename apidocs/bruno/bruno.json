@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "leih.lokal",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

@@ -1,0 +1,35 @@
+meta {
+  name: List cron
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{API_BASE}}/crons
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "identity": "{{USERNAME}}",
+    "password": "{{PASSWORD}}"
+  }
+}
+
+vars:post-response {
+  token: res.body.token
+}
+
+script:pre-request {
+  await bru.runRequest('Authenticate')
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
