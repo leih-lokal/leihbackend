@@ -12,6 +12,12 @@ import Imap from 'node-imap'
 
 const SMTP_CREDENTIALS_PATH = `${tmpdir()}/.leihbackend_smtp.json`
 
+// https://stackoverflow.com/a/1050782/3112139
+Date.prototype.addHours = function(h) {
+  this.setTime(this.getTime() + (h*60*60*1000));
+  return this;
+}
+
 async function fileExists(file) {
     try {
         await access(file, fs.constants.F_OK)

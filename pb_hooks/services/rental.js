@@ -163,16 +163,9 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
         // Accordingly, numReservations should actually never be greater than 1.
         const numReservations = reservationService.countActiveByItem(itemId, app)
         // We're not subtracting reservations here, because when creating a new rental to fulfill an existing reservation, we need the item to be considered available.
-        // We assume that rentals are only created by responsible and attentative employees who check the reservations table first.        
+        // We assume that rentals are only created by responsible and attentative employees who check the reservations table first.
         const numAvailable = numTotal - numRented
         const numRemaining = numAvailable - numRequested
-
-        console.log(itemId)
-        console.log('total', numTotal)
-        console.log('requested', numRequested)
-        console.log('rented', numRented)
-        console.log('available', numAvailable)
-        console.log('remaining', numRemaining)
 
         if (numRemaining == 0) {
             app.logger().info(`Setting item ${item.id} to outofstock (${numRented} copies rented, ${numAvailable} available, ${numReservations} active reservations)`)
@@ -195,6 +188,8 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
 // E-Mail Sending
 
 function sendReminderMail(r) {
+    const { DRY_MODE } = require(`${__hooks}/constants.js`)
+
     $app.expandRecord(r, ['items', 'customer'], null)
 
     const customerEmail = r.expandedOne('customer').getString('email')
@@ -224,7 +219,7 @@ function sendReminderMail(r) {
     })
 
     $app.logger().info(`Sending reminder mail for rental ${r.id} to customer ${customerEmail}.`)
-    $app.newMailClient().send(message)
+    if (!DRY_MODE) $app.newMailClient().send(message)
 }
 
 module.exports = {
