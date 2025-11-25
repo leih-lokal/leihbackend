@@ -11,5 +11,10 @@
     "node-imap": "^0.9.6",
     "nodemailer": "^7.0.10",
     "pocketbase": "^0.26.3"
+  },
+  "prettier": {
+    "tabWidth": 4,
+    "semi": false,
+    "singleQuote": true
   }
 }
