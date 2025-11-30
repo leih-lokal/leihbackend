@@ -84,7 +84,25 @@
 </header>
 
 <main>
-    {{block "body" .}}
+    {{define "body"}}
+    <p>Lieber Ausleiher, liebe Ausleiherin,</p>
+    
+    <p>morgen wird die Rückgabe eines oder mehrerer Gegenstände fällig. Wir bitten dich, die folgenden Gegenstände morgen zu den Öffnungszeiten zurückzubringen.</p><br>
+    
+    <p><strong>Verlängerung möglich?</strong> Bei vielen Gegenständen ist es generell möglich, die Ausleihe auf Nachfrage zu verlängern. Bitte frag hierzu während der Öffnungszeiten telefonisch oder jederzeit per E-Mail nach. Bitte hab Verständnis, dass, je nach Nachfrage des Gegenstandes, eine Verlängerung nicht immer möglich ist.</p><br>
+    
+    <p>Sollten wir morgen nicht geöffnet haben, gib die Gegenstände einfach am nächsten Öffnungstag ab. Weitere Informationen findest du auf unserer Website.</p>
+    
+    <h2 style="color: rgb(242, 12, 13); margin-top: 40px;">Fällige Gegenstände</h2>
+    <ul style="list-style: none; padding: 0; margin: 0;">
+        {{ range $item := .items }}
+        <li style="padding: 12px; margin: 8px 0; background-color: #f9f9f9; border-left: 4px solid rgb(242, 12, 13);">
+            <strong>{{ $item.iid }}</strong> – {{ $item.name }}
+        </li>
+        {{ end }}
+    </ul>
+    
+    <p style="margin-top: 40px; font-size: 12px; color: #666; font-style: italic;">Diese Email wurde automatisch generiert. Sie kann daher Fehler enthalten. Wir bitten dies zu entschuldigen.</p>
     {{end}}
 </main>
 

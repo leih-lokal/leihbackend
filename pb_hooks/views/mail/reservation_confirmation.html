@@ -1,46 +1,62 @@
-Lieber Ausleiher, liebe Ausleiherin,<br>
-<br>
-Wir haben Deine Reservierung erhalten. Wir werden diese baldmöglich bearbeiten und den Gegenstand (falls er verfügbar ist) für Dich bis zum Termin zurücklegen.<br>
-<br>
-Bitte beachte: Falls Du noch keine Nutzernummer hast, d.h. Neukunde bist, drucke bitte (falls möglich) das <a href="https://www.buergerstiftung-karlsruhe.de/wp-content/uploads/2022/03/2022_03_05-NutzungsantragLeihbedingungen.pdf">Registrierungsformular</a> aus und bringen es ausgefüllt mit. Kein Problem, falls du keinen Drucker hast, haben wir auch Formulare vor Ort.
-<br>
-<br>
-Um den Termin wieder abzusagen, klicken bitte auf folgenden Link: <a href="{{ .cancel_link }}">Termin absagen</a>.
-<br>
-<br>
-<h3>Reservierungsübersicht</h3>
+{{define "body"}}
+<p>Lieber Ausleiher, liebe Ausleiherin,</p>
 
-<h4>Deine Daten:</h4>
-<ul>
-    <li><strong>Abholtermin:</strong> {{ .pickup }} (Ungefähre Abholzeit)</li>
-    <li><strong>Dein Name:</strong> {{ .customer_name }}</li>
+<p>Wir haben Deine Reservierung erhalten. Wir werden diese baldmöglich bearbeiten und den Gegenstand (falls er verfügbar ist) für Dich bis zum Termin zurücklegen.</p>
+
+{{ if .otp }}
+<div style="background-color: rgb(242, 12, 13); color: white; padding: 30px; margin: 30px 0; text-align: center; border-radius: 8px;">
+    <p style="margin: 0; font-size: 14px; font-weight: bold; letter-spacing: 2px;">DEIN ABHOLCODE</p>
+    <p style="margin: 15px 0 0 0; font-size: 48px; font-weight: bold; letter-spacing: 8px;">{{ .otp }}</p>
+</div><br>
+<p style="text-align: center; color: #666; font-size: 14px; margin-top: -20px;">Bitte zeige diesen Code bei der Abholung vor.</p>
+{{ end }}
+
+<p><strong>Wichtiger Hinweis:</strong> Falls Du noch keine Nutzernummer hast, d.h. Neukunde bist, drucke bitte (falls möglich) das <a href="https://www.buergerstiftung-karlsruhe.de/wp-content/uploads/2022/03/2022_03_05-NutzungsantragLeihbedingungen.pdf" style="color: rgb(242, 12, 13);">Registrierungsformular</a> aus und bringe es ausgefüllt mit. Kein Problem, falls du keinen Drucker hast, haben wir auch Formulare vor Ort.</p>
+
+<p>Um den Termin wieder abzusagen, klicke bitte auf folgenden Link: <a href="{{ .cancel_link }}" style="color: rgb(242, 12, 13);">Termin absagen</a>.</p>
+
+<h2 style="color: rgb(242, 12, 13); margin-top: 40px;">Reservierungsübersicht</h2>
+
+<h3 style="color: #333; border-bottom: 2px solid rgb(242, 12, 13); padding-bottom: 8px;">Deine Daten</h3>
+<table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+    <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 12px 0; font-weight: bold; width: 180px;">Abholtermin:</td>
+        <td style="padding: 12px 0;">{{ .pickup }} <span style="color: #666; font-size: 14px;">(Ungefähre Abholzeit)</span></td>
+    </tr>
+    <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 12px 0; font-weight: bold;">Dein Name:</td>
+        <td style="padding: 12px 0;">{{ .customer_name }}</td>
+    </tr>
     {{ if gt .customer_iid 0 }}
-    <li><strong>Dein Nutzernummer:</strong> {{ .customer_iid }}</li>
+    <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 12px 0; font-weight: bold;">Deine Nutzernummer:</td>
+        <td style="padding: 12px 0;">{{ .customer_iid }}</td>
+    </tr>
     {{ end }}
-    <li><strong>Deine E-Mail:</strong> {{ .customer_email }}</li>
-    <li><strong>Deine Telefonnummer:</strong> {{ .customer_phone }}</li>
+    <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 12px 0; font-weight: bold;">Deine E-Mail:</td>
+        <td style="padding: 12px 0;">{{ .customer_email }}</td>
+    </tr>
+    <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 12px 0; font-weight: bold;">Deine Telefonnummer:</td>
+        <td style="padding: 12px 0;">{{ .customer_phone }}</td>
+    </tr>
     {{ if .comments }}
-    <li><strong>Kommentar:</strong> {{ .comments }} </li>
+    <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 12px 0; font-weight: bold;">Kommentar:</td>
+        <td style="padding: 12px 0;">{{ .comments }}</td>
+    </tr>
+    {{ end }}
+</table>
+
+<h3 style="color: #333; border-bottom: 2px solid rgb(242, 12, 13); padding-bottom: 8px;">Deine Reservierung</h3>
+<ul style="list-style: none; padding: 0; margin: 0;">
+    {{ range $item := .items }}
+    <li style="padding: 12px; margin: 8px 0; background-color: #f9f9f9; border-left: 4px solid rgb(242, 12, 13);">
+        <strong>{{ $item.iid }}</strong> – {{ $item.name }}
+    </li>
     {{ end }}
 </ul>
 
-<h4>Deine Reservierung:</h4>
-<ul>
-    {{ range $item := .items }}
-    <li>{{ $item.iid }} - {{ $item.name }}</li>
-    {{ end }}
-</ul>
-<br>
-Liebe Grüße<br>
-das leih.lokal-Team<br>
-<br>
-www.leihlokal-ka.de<br>
-<br>
-Gerwigstr. 41, 76131 Karlsruhe<br>
-Öffnungszeiten: Mo, Do, Fr: 15-19, Sa: 10-14<br>
-Telefon: 0721/ 4700 4551<br>
-Email: info@leihlokal-ka.de<br>
-<br>
-<br>
-<i>Diese Email wurde automatisch generiert. Sie kann daher Fehler enthalten. Wir bitten dies zu entschuldigen.</i><br>
-<br>
+<p style="margin-top: 40px; font-size: 12px; color: #666; font-style: italic;">Diese Email wurde automatisch generiert. Sie kann daher Fehler enthalten. Wir bitten dies zu entschuldigen.</p>
+{{end}}
