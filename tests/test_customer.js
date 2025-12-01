@@ -219,8 +219,6 @@ describe('Customer', () => {
             await setTimeout(3000)
 
             let logs = await client.logs.getList(1, 10, { sort: '-created' })
-            console.log(JSON.stringify(logs.items, 4))
-            console.log(`Deleting ${customer.email} (${customer.id}) after they have not responded to reminder mail within 7 days.`)
             let filteredLogs = logs.items.filter((l) => l.message === `Deleting ${customer.email} (${customer.id}) after they have not responded to reminder mail within 7 days.`)
             assert.lengthOf(filteredLogs, 1)
 
