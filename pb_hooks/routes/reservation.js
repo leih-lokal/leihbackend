@@ -20,7 +20,7 @@ function handleGetCancel(e) {
     }
 
     const html = $template.loadFiles(
-        `${__hooks}/views/layout.html`,
+        `${__hooks}/views/mail/layout.html`,
         `${__hooks}/views/reservation_cancellation.html`,
     ).render({date})
 
@@ -29,7 +29,7 @@ function handleGetCancel(e) {
 
 function handleGetCsv(e) {
     const {exportCsv} = require(`${__hooks}/services/reservation`)
-    
+
     const result = exportCsv()
     const ts = new DateTime().unix()
 
