@@ -5,7 +5,7 @@ leih.lokal Karlsruhe management system. Succesor of [LeihLokalVerwaltung](https:
 ## Setup
 1. Download Pocketbase
 ```bash
-wget https://github.com/pocketbase/pocketbase/releases/download/v0.23.12/pocketbase_0.23.12_linux_amd64.zip
+wget https://github.com/pocketbase/pocketbase/releases/download/v0.34.0/pocketbase_0.34.0_linux_amd64.zip
 unzip pocketbase*
 rm CHANGELOG* LICENSE* *.zip
 ```

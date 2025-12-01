@@ -1,17 +1,9 @@
-Lieber Ausleiher, liebe Ausleiherin,<br>
-<br>
-deine Reservierung für {{ .pickup }} wurde erfolgreich storniert.<br>
-<br>
-Liebe Grüße<br>
-das leih.lokal-Team<br>
-<br>
-www.leihlokal-ka.de<br>
-<br>
-Gerwigstr. 41, 76131 Karlsruhe<br>
-Öffnungszeiten: Mo, Do, Fr: 15-19, Sa: 10-14<br>
-Telefon: 0721/ 4700 4551<br>
-Email: info@leihlokal-ka.de<br>
-<br>
-<br>
-<i>Diese Email wurde automatisch generiert. Sie kann daher Fehler enthalten. Wir bitten dies zu entschuldigen.</i><br>
-<br>
+{{define "title"}}
+[leih.lokal] Reservierung stornieren
+{{end}}
+
+{{define "body"}}
+<h1>Reservierung storniert</h1>
+<p>Deine Reservierung für den {{ .date }} wurde erfolgreich storniert. Zurück zur Startseite geht's <a
+        href="https://leihlokal-ka.de">hier</a>.</p>
+{{end}}

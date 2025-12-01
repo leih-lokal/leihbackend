@@ -197,7 +197,10 @@ function sendReminderMail(r) {
     // Get requested_copies to show copy counts in email
     const requestedCopies = r.get('requested_copies') || {}
 
-    const html = $template.loadFiles(`${__hooks}/views/mail/return_reminder.html`).render({
+    const html = $template.loadFiles(
+        `${__hooks}/views/mail/layout.html`,
+        `${__hooks}/views/mail/return_reminder.html`
+    ).render({
         items: r.expandedAll('items').map(i => {
             const copyCount = requestedCopies[i.id] || 1
             return {

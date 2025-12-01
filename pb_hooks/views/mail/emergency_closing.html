@@ -1,26 +1,22 @@
+{{define "body"}}
 {{ if and .firstname .lastname }}
-Liebe/r {{.firstname}} {{.lastname}},<br>
+<p>Liebe/r {{.firstname}} {{.lastname}},</p>
 {{ else }}
-Liebe/r Nutzer:in,<br>
+<p>Liebe/r Nutzer:in,</p>
 {{ end }}
-<br>
-Heute wäre deine Rückgabe eines unserer Gegenstände fällig. <br>
-Leider muss das leih.lokal heute aus unvorhergesehenen Gründen geschlossen bleiben.<br>
-<br>
-Deine Ausleihe kannst du daher einfach am darauffolgenden Öffnungstag zurück bringen, kein Problem! Bitte stelle keine ausgeliehenen Gegenstände bei uns vor der Tür ab, die Rückgabe läuft bei uns nur persönlich.<br>
-<br>
-Wir bitten um Entschuldigung für die Unannehmlichkeit. Bei Fragen wende dich gerne per Mail an uns.<br>
-<br>
-Liebe Grüße<br>
-das leih.lokal-Team<br>
-<br>
-www.leihlokal-ka.de<br>
-<br>
-Gerwigstr. 41, 76131 Karlsruhe<br>
-Öffnungszeiten: Mo, Do, Fr: 15-19, Sa: 10-14<br>
-Telefon: 0721/ 4700 4551<br>
-Email: info@leihlokal-ka.de<br>
-<br>
-<br>
-<i>Diese Email wurde automatisch generiert. Sie kann daher Fehler enthalten. Wir bitten dies zu entschuldigen.</i><br>
-<br>
+
+<p>Heute wäre deine Rückgabe eines unserer Gegenstände fällig.</p>
+
+<div style="background-color: #f8d7da; border-left: 4px solid rgb(242, 12, 13); padding: 20px; margin: 30px 0;">
+    <p style="margin: 0;"><strong>Wichtige Information:</strong></p>
+    <p style="margin: 10px 0 0 0;">Leider muss das leih.lokal heute aus unvorhergesehenen Gründen geschlossen bleiben.</p>
+</div>
+
+<p><strong>Kein Problem!</strong> Deine Ausleihe kannst du daher einfach am darauffolgenden Öffnungstag zurück bringen.</p>
+
+<p style="background-color: #fff3cd; padding: 15px; border-radius: 4px;"><strong>Wichtig:</strong> Bitte stelle keine ausgeliehenen Gegenstände bei uns vor der Tür ab, die Rückgabe läuft bei uns nur persönlich.</p>
+
+<p>Wir bitten um Entschuldigung für die Unannehmlichkeit. Bei Fragen wende dich gerne per Mail an uns.</p>
+
+<p style="margin-top: 40px; font-size: 12px; color: #666; font-style: italic;">Diese Email wurde automatisch generiert. Sie kann daher Fehler enthalten. Wir bitten dies zu entschuldigen.</p>
+{{end}}

@@ -182,13 +182,21 @@ function sendConfirmationMail(r) {
     const { fmtDateTime } = require(`${__hooks}/utils/common.js`)
     const { DRY_MODE } = require(`${__hooks}/constants.js`)
 
+    // Skip email if on_premises is true
+    if (r.getBool('on_premises')) {
+        return
+    }
+
     $app.expandRecord(r, ['items'], null)
 
     const customerEmail = r.getString('customer_email')
     const pickupDateStr = fmtDateTime(r.getDateTime('pickup'))
     const cancelLink = `${$app.settings().meta.appURL}/reservation/cancel?token=${r.getString("cancel_token")}`
 
-    const html = $template.loadFiles(`${__hooks}/views/mail/reservation_confirmation.html`).render({
+    const html = $template.loadFiles(
+        `${__hooks}/views/mail/layout.html`,
+        `${__hooks}/views/mail/reservation_confirmation.html`
+    ).render({
         pickup: pickupDateStr,
         customer_name: r.getString('customer_name'),
         customer_iid: r.getInt('customer_iid'),
@@ -199,7 +207,8 @@ function sendConfirmationMail(r) {
             iid: i.getInt('iid'),
             name: i.getString('name'),
         })),
-        cancel_link: cancelLink
+        cancel_link: cancelLink,
+        otp: r.getString('otp')
     })
 
     const message = new MailerMessage({
@@ -218,6 +227,11 @@ function sendConfirmationMail(r) {
 function sendCancellationMail(r) {
     const { fmtDateTime } = require(`${__hooks}/utils/common.js`)
     const { DRY_MODE } = require(`${__hooks}/constants.js`)
+
+    // Skip email if on_premises is true
+    if (r.getBool('on_premises')) {
+        return
+    }
 
     const customerEmail = r.getString('customer_email')
     const pickupDateStr = fmtDateTime(r.getDateTime('pickup'))
