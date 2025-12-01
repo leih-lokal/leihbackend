@@ -193,7 +193,10 @@ function sendConfirmationMail(r) {
     const pickupDateStr = fmtDateTime(r.getDateTime('pickup'))
     const cancelLink = `${$app.settings().meta.appURL}/reservation/cancel?token=${r.getString("cancel_token")}`
 
-    const html = $template.loadFiles(`${__hooks}/views/mail/reservation_confirmation.html`).render({
+    const html = $template.loadFiles(
+        `${__hooks}/views/mail/layout.html`,
+        `${__hooks}/views/mail/reservation_confirmation.html`
+    ).render({
         pickup: pickupDateStr,
         customer_name: r.getString('customer_name'),
         customer_iid: r.getInt('customer_iid'),
