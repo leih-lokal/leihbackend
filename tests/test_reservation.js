@@ -154,6 +154,52 @@ describe('Reservations', () => {
 
             await client.collection('reservation').delete(reservation.id)
         })
+
+        it('should properly update item statuses of modified reservation', async () => {
+            let reservation = await anonymousClient.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item1.id],
+                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+            })
+            assert.isNotNull(reservation)
+
+            item1 = await client.collection('item').getOne(item1.id)
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item1.status, 'reserved')
+            assert.equal(item2.status, 'instock')
+
+            await client.collection('reservation').update(reservation.id, {
+                items: [item2.id],
+            })
+
+            item1 = await client.collection('item').getOne(item1.id)
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item1.status, 'instock')
+            assert.equal(item2.status, 'reserved')
+
+            await client.collection('reservation').delete(reservation.id)
+        })
+
+        it('should not update item status when changing other fields', async () => {
+            let reservation = await anonymousClient.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item1.id],
+                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+            })
+            assert.isNotNull(reservation)
+
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'reserved')
+
+            await client.collection('reservation').update(reservation.id, {
+                comments: 'foobar',
+            })
+
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'reserved')
+
+            await client.collection('reservation').delete(reservation.id)
+        })
     })
 
     describe('Other', () => {
