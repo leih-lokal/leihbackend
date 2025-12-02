@@ -137,9 +137,6 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
         itemCountsDiff[itemId] -= count
     })
 
-    console.log(JSON.stringify(itemCountsOld))
-    console.log(JSON.stringify(itemCountsNew))
-
     const itemsAll = app.findRecordsByIds('item', Object.keys(itemCountsDiff))  // explicitly not using record expansion here, because would yield empty result for whatever reason
 
     itemsAll.forEach(item => {
@@ -197,7 +194,10 @@ function sendReminderMail(r) {
     // Get requested_copies to show copy counts in email
     const requestedCopies = r.get('requested_copies') || {}
 
-    const html = $template.loadFiles(`${__hooks}/views/mail/return_reminder.html`).render({
+    const html = $template.loadFiles(
+        `${__hooks}/views/mail/layout.html`,
+        `${__hooks}/views/mail/return_reminder.html`
+    ).render({
         items: r.expandedAll('items').map(i => {
             const copyCount = requestedCopies[i.id] || 1
             return {

@@ -12,6 +12,8 @@ describe('Customer', () => {
     let anonymousClient
     let imapClient
 
+    let item1
+
     before(async () => {
         client = await getClient()
         anonymousClient = await getAnonymousClient()
@@ -20,6 +22,10 @@ describe('Customer', () => {
         imapClient = await initImap(mailConfig.imap)
         await configureSmtp(client, mailConfig.smtp)
         await purgeInbox(imapClient)
+    })
+
+    beforeEach(async () => {
+        item1 = await client.collection('item').getFirstListItem('iid=1000') // apple pie
     })
 
     after(async () => {
@@ -69,7 +75,7 @@ describe('Customer', () => {
     })
 
     describe('Auto-deletion', () => {
-        it('should send deletion notice to customer registered long ago', async () => {
+        it('should send deletion notice to old customer', async () => {
             let customer = await client.collection('customer').create({
                 iid: 1500,
                 firstname: 'Patrick',
@@ -88,8 +94,9 @@ describe('Customer', () => {
                 },
             ])
 
+            const t0 = new Date()
             await client.crons.run('run_customer_deletion')
-            await setTimeout(1000)
+            await setTimeout(3000)
 
             let messages = await listInbox(imapClient)
             assert.lengthOf(messages, 1)
@@ -97,16 +104,126 @@ describe('Customer', () => {
             assert.equal(messages[0].subject, `[leih.lokal] Löschung Ihrer Daten im leih.lokal nach Inaktivität (Kunden-Nr. ${customer.iid})`)
             assert.deepEqual(messages[0].recipients, [customer.email])
 
-            // TODO: check logs
-            // TODO: check deletetion_reminder_sent field
+            let logs = await client.logs.getList(1, 10, { sort: '-created' })
+            let filteredLogs = logs.items.filter((l) => l.message === `Sending deletion reminder mail to ${customer.email} (${customer.id}).`)
+            assert.lengthOf(filteredLogs, 1)
+
+            customer = await client.collection('customer').getOne(customer.id)
+            assert.isAtLeast(new Date(customer.delete_reminder_sent).getTime(), t0.getTime())
+            assert.isAtMost(new Date(customer.delete_reminder_sent).getTime(), new Date().getTime())
 
             await client.collection('customer').delete(customer.id)
         })
 
-        it('should send deletion notice to customers with recent rentals') // TODO
+        it('should not send deletion notice to customer with recent rental', async () => {
+            let customer = await client.collection('customer').create({
+                iid: 1500,
+                firstname: 'SpongeBob',
+                lastname: 'SquarePants',
+                email: 'spongebob@bikinibottom.com',
+                phone: '012345678911',
+                registered_on: new Date().addYears(-3),
+            })
+            await purgeInbox(imapClient)
 
-        it('should do nothing while waiting for customers reply')  // TODO
+            const rental = await client.collection('rental').create({
+                customer: customer.id,
+                items: [item1.id],
+                rented_on: new Date().addYears(-1).addDays(-1),
+                requested_copies: {
+                    [item1.id]: 1,
+                },
+            })
 
-        it('should delete customer after no response to deletion notice')  // TODO
+            await client.crons.run('run_customer_deletion')
+            await setTimeout(3000)
+
+            let messages = await listInbox(imapClient) // should not send a deletion reminder email
+            assert.lengthOf(messages, 0)
+
+            await client.collection('rental').delete(rental.id)
+            await client.collection('customer').delete(customer.id)
+        })
+
+        it('should send deletion notice to customer with old rental', async () => {
+            let customer = await client.collection('customer').create({
+                iid: 1500,
+                firstname: 'Patrick',
+                lastname: 'Star',
+                email: 'patrick@crustycrab.com',
+                phone: '012345678912',
+                registered_on: new Date().addYears(-3).addDays(-1),
+            })
+            await purgeInbox(imapClient)
+
+            let rental = await client.collection('rental').create({
+                customer: customer.id,
+                items: [item1.id],
+                rented_on: new Date().addYears(-3),
+                requested_copies: {
+                    [item1.id]: 1,
+                },
+            })
+
+            await client.crons.run('run_customer_deletion')
+            await setTimeout(3000)
+
+            let messages = await listInbox(imapClient)
+            assert.lengthOf(messages, 1)
+            assert.equal(messages[0].sender, USERNAME)
+            assert.equal(messages[0].subject, `[leih.lokal] Löschung Ihrer Daten im leih.lokal nach Inaktivität (Kunden-Nr. ${customer.iid})`)
+            assert.deepEqual(messages[0].recipients, [customer.email])
+
+            await client.collection('rental').delete(rental.id)
+            await client.collection('customer').delete(customer.id)
+        })
+
+        it('should do nothing while waiting for customers reply', async () => {
+            let customer = await client.collection('customer').create({
+                iid: 1500,
+                firstname: 'Patrick',
+                lastname: 'Star',
+                email: 'patrick@crustycrab.com',
+                phone: '012345678910',
+                registered_on: new Date().addYears(-2).addDays(-2),
+                delete_reminder_sent: new Date().addHours(-2),
+            })
+            await purgeInbox(imapClient)
+
+            await client.crons.run('run_customer_deletion')
+            await setTimeout(3000)
+
+            let messages = await listInbox(imapClient)
+            assert.lengthOf(messages, 0)
+
+            let logs = await client.logs.getList(1, 10, { sort: '-created' })
+            let filteredLogs = logs.items.filter((l) => l.message === `Currently waiting for reply to deletion reminder from ${customer.email} (${customer.id}).`)
+            assert.lengthOf(filteredLogs, 1)
+
+            await client.collection('customer').delete(customer.id)
+        })
+
+        it('should delete customer after no response to deletion notice', async () => {
+            let customer = await client.collection('customer').create({
+                iid: 1500,
+                firstname: 'Patrick',
+                lastname: 'Star',
+                email: 'patrick@crustycrab.com',
+                phone: '012345678910',
+                registered_on: new Date().addYears(-2).addDays(-2),
+                delete_reminder_sent: new Date().addDays(-8),  // more than grace period
+            })
+            await purgeInbox(imapClient)
+
+            await client.crons.run('run_customer_deletion')
+            await setTimeout(3000)
+
+            let logs = await client.logs.getList(1, 10, { sort: '-created' })
+            let filteredLogs = logs.items.filter((l) => l.message === `Deleting ${customer.email} (${customer.id}) after they have not responded to reminder mail within 7 days.`)
+            assert.lengthOf(filteredLogs, 1)
+
+            let promise = client.collection('customer').getOne(customer.id)
+            await assert.isRejected(promise)
+        })
     })
 })

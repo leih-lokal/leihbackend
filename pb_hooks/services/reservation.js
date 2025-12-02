@@ -150,26 +150,33 @@ function updateItems(reservation, oldReservation = null, isDelete = false, app =
     // Note: for simplicity, we're currently not considering the number of copies of an item. If an item is reserved, we simply assume all instance of it to be reserved.
     // Otherwise things get confusing (e.g. customer reserves an item, but status on the website is still shown as available, etc.).
 
-    // TODO: handle (or forbid) the case where a reservation is marked as doen and it's item list is updated at the same time (currently unhandled)
+    // TODO: handle (or forbid) the case where a reservation is marked as done and it's item list is updated at the same time (currently unhandled)
 
     const itemService = require(`${__hooks}/services/item.js`)
 
     const isDone = reservation.getBool('done') || isDelete
+
     const itemIdsNew = reservation.getStringSlice('items') // explicitly not using record expansion here, because would yield empty result for whatever reason
     const itemIdsOld = oldReservation?.getStringSlice('items') || []
-    const itemsNew = app.findRecordsByIds('item', itemIdsNew)
-    const itemsRemoved = itemIdsOld.length ? app.findRecordsByIds('item', itemIdsOld.filter(id => !(id in itemIdsNew))) : []
 
+    const itemIdsAdded = itemIdsNew.filter(id => !(itemIdsOld.includes(id)))
+    const itemIdsRemoved = itemIdsOld.filter(id => !(itemIdsNew.includes(id)))
+    const itemIdsUnchanged = itemIdsNew.filter(id => itemIdsOld.includes(id))
 
-    const items = [...itemsNew, ...itemsRemoved]
+    const itemsAdded = app.findRecordsByIds('item', itemIdsAdded)
+    const itemsRemoved = app.findRecordsByIds('item', itemIdsRemoved)
+    const itemUnchanged = app.findRecordsByIds('item', itemIdsUnchanged)
+
+    const items = [...itemsAdded, ...itemsRemoved, ...itemUnchanged]
     items.forEach(item => {
         const [itemIid, itemStatus] = [item.getInt('iid'), item.getString('status')]
-        const wasRemoved = !itemIdsNew.includes(item.id)
+        const doUnreserve = isDone || itemIdsRemoved.includes(item.id)
+        const doReserve = !doUnreserve && itemIdsAdded.includes(item.id)
 
-        if (isDone || wasRemoved) {
+        if (doUnreserve) {
             if (itemStatus === 'reserved') return itemService.setStatus(item, 'instock', app)  // was reserved -> reservation cleared -> available again
             app.logger().warn(`Not resetting availability status of item ${item.id} (${itemIid}) upon cleared reservation, because was not marked as reserved (${itemStatus} instead).`)
-        } else {
+        } else if (doReserve) {
             if (itemStatus !== 'instock') throw new InternalServerError(`Can't set status of item ${item.id} (${itemIid}) to 'reserved', because currently not available (${itemStatus} instead).`)
             itemService.setStatus(item, 'reserved', app)
         }
@@ -182,13 +189,21 @@ function sendConfirmationMail(r) {
     const { fmtDateTime } = require(`${__hooks}/utils/common.js`)
     const { DRY_MODE } = require(`${__hooks}/constants.js`)
 
+    // Skip email if on_premises is true
+    if (r.getBool('on_premises')) {
+        return
+    }
+
     $app.expandRecord(r, ['items'], null)
 
     const customerEmail = r.getString('customer_email')
     const pickupDateStr = fmtDateTime(r.getDateTime('pickup'))
     const cancelLink = `${$app.settings().meta.appURL}/reservation/cancel?token=${r.getString("cancel_token")}`
 
-    const html = $template.loadFiles(`${__hooks}/views/mail/reservation_confirmation.html`).render({
+    const html = $template.loadFiles(
+        `${__hooks}/views/mail/layout.html`,
+        `${__hooks}/views/mail/reservation_confirmation.html`
+    ).render({
         pickup: pickupDateStr,
         customer_name: r.getString('customer_name'),
         customer_iid: r.getInt('customer_iid'),
@@ -199,7 +214,8 @@ function sendConfirmationMail(r) {
             iid: i.getInt('iid'),
             name: i.getString('name'),
         })),
-        cancel_link: cancelLink
+        cancel_link: cancelLink,
+        otp: r.getString('otp')
     })
 
     const message = new MailerMessage({
@@ -218,6 +234,11 @@ function sendConfirmationMail(r) {
 function sendCancellationMail(r) {
     const { fmtDateTime } = require(`${__hooks}/utils/common.js`)
     const { DRY_MODE } = require(`${__hooks}/constants.js`)
+
+    // Skip email if on_premises is true
+    if (r.getBool('on_premises')) {
+        return
+    }
 
     const customerEmail = r.getString('customer_email')
     const pickupDateStr = fmtDateTime(r.getDateTime('pickup'))

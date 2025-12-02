@@ -48,7 +48,7 @@ async function getAnonymousClient() {
 }
 
 async function configureSmtp(client, { host, port, username, password }) {
-    client.settings.update({
+    await client.settings.update({
         smtp: {
             enabled: true,
             host,

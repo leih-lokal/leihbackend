@@ -1,0 +1,11 @@
+[
+  {
+    "label": "test_customer.js",
+    "adapter": "JavaScript",
+    "type": "node",
+    "request": "launch",
+    "program": "tests/node_modules/.bin/mocha",
+    "args": ["-t", "10000", "tests/test_customer.js"],
+    "skipFiles": ["<node_internals>/**"]
+  }
+]
