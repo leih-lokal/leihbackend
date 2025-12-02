@@ -40,7 +40,7 @@ nohup $POCKETBASE_PATH --dir $DATA_DIR --hooksDir $HOOKS_PATH serve > /dev/null 
 PB_PID=$!
 echo "Pocketbase started (PID: $PB_PID)"
 
-sleep 1
+sleep 5
 
 echo "Starting tests ..."
 cd $SCRIPT_DIR

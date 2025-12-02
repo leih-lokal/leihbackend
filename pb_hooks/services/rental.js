@@ -195,7 +195,7 @@ function sendReminderMail(r) {
     const requestedCopies = r.get('requested_copies') || {}
 
     const html = $template.loadFiles(
-        `${__hooks}/views/mail/layout.html`,
+        `${__hooks}/views/layout.html`,
         `${__hooks}/views/mail/return_reminder.html`
     ).render({
         items: r.expandedAll('items').map(i => {

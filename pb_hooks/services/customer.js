@@ -74,7 +74,7 @@ function sendWelcomeMail(c) {
     const customerEmail = c.getString('email')
 
     const html = $template.loadFiles(
-        `${__hooks}/views/mail/layout.html`,
+        `${__hooks}/views/layout.html`,
         `${__hooks}/views/mail/customer_welcome.html`
     ).render({
         firstname: c.getString('firstname'),
@@ -100,7 +100,7 @@ function sendEmergencyClosingMail(c) {
     const customerEmail = c.getString('email')
 
     const html = $template.loadFiles(
-        `${__hooks}/views/mail/layout.html`,
+        `${__hooks}/views/layout.html`,
         `${__hooks}/views/mail/emergency_closing.html`
     ).render({
         firstname: c.getString('firstname'),
@@ -125,7 +125,7 @@ function sendDeletionReminderMail(c) {
     const customerEmail = c.getString('email')
 
     const html = $template.loadFiles(
-        `${__hooks}/views/mail/layout.html`,
+        `${__hooks}/views/layout.html`,
         `${__hooks}/views/mail/deletion_reminder.html`
     ).render({
         firstname: c.getString('firstname'),

@@ -1,9 +1,9 @@
-{{define "title"}}
-[leih.lokal] Reservierung stornieren
-{{end}}
-
 {{define "body"}}
-<h1>Reservierung storniert</h1>
-<p>Deine Reservierung für den {{ .date }} wurde erfolgreich storniert. Zurück zur Startseite geht's <a
-        href="https://leihlokal-ka.de">hier</a>.</p>
+<p>Lieber Ausleiher, liebe Ausleiherin,</p>
+
+<p>deine Reservierung für <strong>{{ .pickup }}</strong> wurde erfolgreich storniert.</p>
+
+<p>Falls du einen anderen Termin buchen möchtest, kannst du jederzeit eine neue Reservierung über unsere Website vornehmen oder uns während der Öffnungszeiten kontaktieren.</p>
+
+<p style="margin-top: 40px; font-size: 12px; color: #666; font-style: italic;">Diese Email wurde automatisch generiert. Sie kann daher Fehler enthalten. Wir bitten dies zu entschuldigen.</p>
 {{end}}
