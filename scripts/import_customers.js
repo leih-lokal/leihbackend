@@ -6,7 +6,10 @@ const DRY = false
 const POCKETBASE_HOST = 'http://127.0.0.1:8090'
 const POCKETBASE_USER = 'ferdinand@muetsch.io'
 const POCKETBASE_PASSWORD = 'admin123456'
-const COUCHDB_DUMP_FILE = '../data/leihlokal_23-12-14_20-00-01_cleaned.json'
+const COUCHDB_DUMP_FILE = '../data/leihlokal_25-12-02_20-00-01.json'
+
+const FALLBACK_PHONE = '00000'
+const FALLBACK_EMAIL = 'noemail@example.org'
 
 const HEARD_CHOICES = [
     "Internet",
@@ -17,16 +20,24 @@ const HEARD_CHOICES = [
 ]
 
 async function mapEntity(e) {
+    let phone = (e.telephone_number || '').replaceAll(' ', '').trim()
+    let phoneMatch = phone ? phone.match(/[0-9]+/) : null
+    phone = phoneMatch ? phoneMatch[0] : FALLBACK_PHONE
+
+    let email = (e.email || '').replaceAll(' ', '').trim().toLowerCase()
+    let emailMatch = email ? email.match(/(?!\.)(?!.*\.\.)([a-z0-9_'+\-\.]*)[a-z0-9_'+\-]@([a-z0-9][a-z0-9\-]*\.)+[a-z]{2,}/) : null
+    email = emailMatch ? emailMatch[0] : FALLBACK_EMAIL
+
     return {
         iid: e.id,
         legacy_rev: e._rev,
-        email: e.email?.trim().toLowerCase() || 'noemail@example.org',
+        email,
         firstname: e.firstname?.trim() || null,
         lastname: e.lastname?.trim() || null,
         street: `${e.street} ${e.house_number}`.trim(),
         postal_code: e.postal_code?.toString()?.trim() || null,
         city: e.city?.trim() || null,
-        phone: e.telephone_number?.trim() || '00000',
+        phone,
         heard: HEARD_CHOICES.includes(e.heard?.trim()) ? e.heard?.trim() : HEARD_CHOICES.at(-1),
         remark: e.remark?.trim() || null,
         highlight_color: e.highlight?.trim() || null,
@@ -50,6 +61,7 @@ async function run() {
     const nonExistingCustomers = customers.filter(e => !existingCustomers.find(e1 => e1.iid === e.id))
     const updatedCustomers = customers.filter(e => existingCustomers.find(e1 => e1.iid === e.id && e1.legacy_rev !== e._rev))
     const failedCustomerIds = new Set()
+    const fallbackCounts = { email: 0, phone: 0 }
 
     console.log('Creating new customers ...')
     const pbar1 = new progress.SingleBar({}, progress.Presets.shades_classic);
@@ -57,7 +69,11 @@ async function run() {
 
     for (const e of nonExistingCustomers) {
         try {
-            await pb.collection('customer').create(await mapEntity(e))
+            const entity = await mapEntity(e)
+            if (DRY) console.log(`[DRY MODE] Creating customer [${e.iid}] ${e.firstname} ${e.lastname} (${e.email})`)
+            else await pb.collection('customer').create(entity)
+            fallbackCounts.phone += entity.phone === FALLBACK_PHONE
+            fallbackCounts.email += entity.email === FALLBACK_EMAIL
         } catch (err) {
             failedCustomerIds.add(e.id)
         }
@@ -80,6 +96,7 @@ async function run() {
     }
     console.log()
 
+    console.log(`\nGot ${fallbackCounts.email} customers with invalid email and ${fallbackCounts.phone} with invalid phone.`)
     if (failedCustomerIds.size) {
         console.log(`\nFailed to create / update ${failedCustomerIds.size} customers (due to validation error?):`)
         console.log(JSON.stringify([...failedCustomerIds]))
