@@ -14,17 +14,19 @@
 // ----- //
 
 onRecordCreateExecute((e) => {
+    const { IMPORT_MODE } = require(`${__hooks}/constants.js`)
     const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
     const { validate, updateItems } = require(`${__hooks}/services/rental.js`)
 
     wrapTransactional(e, (e) => {
-        validate(e.record)
+        if (!IMPORT_MODE) validate(e.record)
         e.next()
-        updateItems(e.record, null, false, e.app)
+        if (!IMPORT_MODE) updateItems(e.record, null, false, e.app)
     })
 }, 'rental')
 
 onRecordUpdateExecute((e) => {
+    const { IMPORT_MODE } = require(`${__hooks}/constants.js`)
     const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
     const { updateItems } = require(`${__hooks}/services/rental.js`)
 
@@ -32,19 +34,20 @@ onRecordUpdateExecute((e) => {
         // TODO: validate status of potentially newly added items
         const oldRecord = $app.findRecordById('rental', e.record.id)
         e.next()
-        updateItems(e.record, oldRecord, false, e.app)
+        if (!IMPORT_MODE) updateItems(e.record, oldRecord, false, e.app)
     })
 
 }, 'rental')
 
 onRecordDeleteExecute((e) => {
+    const { IMPORT_MODE } = require(`${__hooks}/constants.js`)
     const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
     const { updateItems } = require(`${__hooks}/services/rental.js`)
 
     wrapTransactional(e, (e) => {
         const oldRecord = $app.findRecordById('rental', e.record.id)
         e.next()
-        updateItems(e.record, oldRecord, true, e.app)
+        if (!IMPORT_MODE) updateItems(e.record, oldRecord, true, e.app)
     })
 }, 'rental')
 

@@ -1,9 +1,10 @@
 onBootstrap((e) => {
-    const { DRY_MODE } = require(`${__hooks}/constants.js`)
+    const { DRY_MODE, IMPORT_MODE } = require(`${__hooks}/constants.js`)
 
     $app.logger().info('[server] Initializing custom hooks ...')
     if (DRY_MODE) $app.logger().info('[server] Running in dry mode ...')
     else $app.logger().warn('[server] Running in non-dry mode!')
+    if (IMPORT_MODE) $app.logger().warn('[server] Skipping item status validation and updates because running in import mode ...')
 
     e.next()
 
