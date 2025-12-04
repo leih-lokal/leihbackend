@@ -90,7 +90,7 @@ async function run() {
         }
         pbar1.increment()
     }
-    console.log()
+    pbar1.stop()
 
     console.log(`Updating ${updatedItems.length} existing items ...`)
     const pbar2 = new progress.SingleBar({}, progress.Presets.shades_classic);
@@ -105,7 +105,7 @@ async function run() {
         }
         pbar2.increment()
     }
-    console.log()
+    pbar2.stop()
 
     if (failedItemIds.size) {
         console.log(`\nFailed to create ${failedItemIds.size} items (due to validation error?):`)

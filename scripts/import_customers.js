@@ -80,7 +80,7 @@ async function run() {
         }
         pbar1.increment()
     }
-    console.log()
+    pbar1.stop()
 
     console.log(`Updating ${updatedCustomers.length} existing customers ...`)
     const pbar2 = new progress.SingleBar({}, progress.Presets.shades_classic);
@@ -95,7 +95,7 @@ async function run() {
         }
         pbar2.increment()
     }
-    console.log()
+    pbar2.stop()
 
     console.log(`\nGot ${fallbackCounts.email} customers with invalid email and ${fallbackCounts.phone} with invalid phone.`)
     if (failedCustomerIds.size) {
