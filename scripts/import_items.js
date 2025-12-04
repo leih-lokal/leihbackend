@@ -1,13 +1,14 @@
 const PocketBase = require('pocketbase/cjs')
 const progress = require('cli-progress')
-const { readFileSync, stat } = require('fs')
+const { readFileSync } = require('fs')
+const { exit } = require('process')
 const levenshtein = require('js-levenshtein')
 
 const DRY = false
 const POCKETBASE_HOST = 'http://127.0.0.1:8090'
-const POCKETBASE_USER = 'ferdinand@muetsch.io'
-const POCKETBASE_PASSWORD = 'admin123456'
-const COUCHDB_DUMP_FILE = '../data/leihlokal_23-12-14_20-00-01_cleaned.json'
+const POCKETBASE_USER = 'dev@leihlokal-ka.de'
+const POCKETBASE_PASSWORD = 'leihenistdasneuekaufen'  // testing credentials only
+const COUCHDB_DUMP_FILE = '../data/leihlokal_25-12-02_20-00-01.json'
 
 const CATEGORIES = ['Freizeit', 'Garten', 'Haushalt', 'Heimwerken', 'Kinder', 'Küche', 'Sonstige']
 
@@ -68,7 +69,6 @@ async function run() {
     const items = data
         .filter(d => d.type === 'item')
         .filter(d => d.name !== '')
-        .filter(d => d.status !== 'deleted')
 
     console.log('Fetching existing items ...')
     const existingItems = await pb.collection('item').getFullList({ fields: 'id,iid,legacy_rev' })
@@ -76,7 +76,7 @@ async function run() {
     const updatedItems = items.filter(e => existingItems.find(e1 => e1.iid === e.id && e1.legacy_rev !== e._rev))
     const failedItemIds = new Set()
 
-    console.log('Creating new items ...')
+    console.log(`Creating ${nonExistingItems.length} new items ...`)
     const pbar1 = new progress.SingleBar({}, progress.Presets.shades_classic);
     pbar1.start(nonExistingItems.length, 0)
 
@@ -92,7 +92,7 @@ async function run() {
     }
     console.log()
 
-    console.log('Updating existing items ...')
+    console.log(`Updating ${updatedItems.length} existing items ...`)
     const pbar2 = new progress.SingleBar({}, progress.Presets.shades_classic);
     pbar2.start(updatedItems.length, 0)
 
@@ -111,7 +111,11 @@ async function run() {
         console.log(`\nFailed to create ${failedItemIds.size} items (due to validation error?):`)
         console.log(JSON.stringify([...failedItemIds]))
         console.log()
+        exit(1)
     }
+
+    console.log(`Done importing ${updatedItems.length + nonExistingItems.length} items.`)
+    exit(0)
 }
 
 run()

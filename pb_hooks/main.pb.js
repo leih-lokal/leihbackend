@@ -7,6 +7,8 @@ onBootstrap((e) => {
 
     e.next()
 
-    // const { clearReservations } = require(`${__hooks}/jobs/reservation.js`)
-    // clearReservations()
+    // const { getDueTomorrowRentals } = require(`${__hooks}/services/rental.js`)
+    // const dueRentals = getDueTomorrowRentals()
+    // console.log(`${dueRentals.length} rentals are due tomorrow`)
+    // console.log(dueRentals.map(r => r.getInt('iid')))
 })

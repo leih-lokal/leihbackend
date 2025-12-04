@@ -1,11 +1,12 @@
 const PocketBase = require('pocketbase/cjs')
 const progress = require('cli-progress')
 const { readFileSync } = require('fs')
+const { exit } = require('process')
 
 const DRY = false
 const POCKETBASE_HOST = 'http://127.0.0.1:8090'
-const POCKETBASE_USER = 'ferdinand@muetsch.io'
-const POCKETBASE_PASSWORD = 'admin123456'
+const POCKETBASE_USER = 'dev@leihlokal-ka.de'
+const POCKETBASE_PASSWORD = 'leihenistdasneuekaufen'  // testing credentials only
 const COUCHDB_DUMP_FILE = '../data/leihlokal_25-12-02_20-00-01.json'
 
 const FALLBACK_PHONE = '00000'
@@ -63,7 +64,7 @@ async function run() {
     const failedCustomerIds = new Set()
     const fallbackCounts = { email: 0, phone: 0 }
 
-    console.log('Creating new customers ...')
+    console.log(`Creating ${nonExistingCustomers.length} new customers ...`)
     const pbar1 = new progress.SingleBar({}, progress.Presets.shades_classic);
     pbar1.start(nonExistingCustomers.length, 0)
 
@@ -81,7 +82,7 @@ async function run() {
     }
     console.log()
 
-    console.log('Updating existing customers ...')
+    console.log(`Updating ${updatedCustomers.length} existing customers ...`)
     const pbar2 = new progress.SingleBar({}, progress.Presets.shades_classic);
     pbar2.start(updatedCustomers.length, 0)
 
@@ -101,7 +102,11 @@ async function run() {
         console.log(`\nFailed to create / update ${failedCustomerIds.size} customers (due to validation error?):`)
         console.log(JSON.stringify([...failedCustomerIds]))
         console.log()
+        exit(1)
     }
+
+    console.log(`Done importing ${nonExistingCustomers.length + updatedCustomers.length} customers.`)
+    exit(0)
 }
 
 console.log('WARNING: Make sure to turn off welcome e-mails before running the import script !!!')
