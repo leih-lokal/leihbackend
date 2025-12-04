@@ -1,12 +1,14 @@
 const PocketBase = require('pocketbase/cjs')
 const progress = require('cli-progress')
 const { readFileSync } = require('fs')
+const { exit, argv } = require('process')
 
 const POCKETBASE_HOST = 'http://127.0.0.1:8090'
 const POCKETBASE_USER = 'dev@leihlokal-ka.de'
 const POCKETBASE_PASSWORD = 'leihenistdasneuekaufen'  // testing credentials only
 const COUCHDB_DUMP_FILE = '../data/leihlokal_25-12-02_20-00-01.json'
 
+const activeOnly = argv.includes('--active-only')
 const now = new Date()
 
 async function mapEntity(e, customerId, itemId) {
@@ -31,20 +33,36 @@ function isDone(rental) {
     return rental.returned_on && new Date(rental.returned_on) < now
 }
 
+async function runSanityChecks(pb) {
+    const activeRentals = await pb.collection('rental').getFullList({
+        fields: '*,expand.items.iid,expand.items.status,expand.items.copies',
+        filter: 'returned_on = null',
+        expand: 'items'
+    })
+
+    const inconsistentRentals = activeRentals.filter(r => !r.expand.items.every(i => i.status === 'outofstock' || i.copies > 1))
+    console.log(`Found ${inconsistentRentals.length} rentals with items whose status is not 'outofstock'.`)
+    console.log(inconsistentRentals.map(r => `${r.id} (${r.expand.items.map(i => i.status)})`).join(', '))
+}
+
 async function run() {
     console.log('Connecting to PocketBase ...')
     const pb = new PocketBase(POCKETBASE_HOST)
     await pb.admins.authWithPassword(POCKETBASE_USER, POCKETBASE_PASSWORD)
 
+    if (activeOnly) console.log('Note: will only create new rentals that are active.')
+
     console.log('Loading dump file ...')
     const data = JSON.parse(readFileSync(COUCHDB_DUMP_FILE)).docs
     const rentals = data.filter(d => d.type === 'rental')
+    const activeRentals = rentals.filter(r => !isDone(r))
 
     console.log('Fetching existing rentals ...')
     const existingRentals = await pb.collection('rental').getFullList({ fields: 'id,legacy_id,legacy_rev' })
-    const nonExistingRentals = rentals.filter(e => !existingRentals.find(e1 => e1.legacy_id === e._id))
+    const nonExistingRentals = rentals.filter(e => !existingRentals.find(e1 => e1.legacy_id === e._id)).filter(e => !activeOnly || isActive(e))
     const updatedRentals = rentals.filter(e => existingRentals.find(e1 => e1.legacy_id === e._id && e1.legacy_rev !== e._rev))
     const failedRentalIds = new Set()
+    console.log(`Got ${activeRentals.length} active rentals`)
 
     console.log('Fetching all customers ...')
     const customersMapping = (await pb.collection('customer').getFullList({ fields: 'id,iid' })).reduce((acc, c) => ({ ...acc, [c.iid]: c.id }), {})
@@ -52,7 +70,7 @@ async function run() {
     console.log('Fetching all items ...')
     const itemsMapping = (await pb.collection('item').getFullList({ fields: 'id,iid' })).reduce((acc, i) => ({ ...acc, [i.iid]: i.id }), {})
 
-    console.log('Creating new rentals ...')
+    console.log(`Creating ${nonExistingRentals.length} new rentals ...`)
     const pbar1 = new progress.SingleBar({}, progress.Presets.shades_classic);
     pbar1.start(nonExistingRentals.length, 0)
 
@@ -71,7 +89,7 @@ async function run() {
     }
     console.log()
 
-    console.log('Updating existing rentals ...')
+    console.log(`Updating ${updatedRentals.length} existing rentals ...`)
     const pbar2 = new progress.SingleBar({}, progress.Presets.shades_classic);
     pbar2.start(updatedRentals.length, 0)
 
@@ -103,6 +121,13 @@ async function run() {
         console.log(skippedMissingItem.map(e => `${e._id} (${e.customer_id})`).join(', '))
         console.log()
     }
+
+    if (failedRentalIds.size) exit(1)
+
+    await runSanityChecks(pb)
+
+    console.log(`Done importing ${updatedRentals.length + nonExistingRentals.length} rentals.`)
+    exit(0)
 }
 
 run()
