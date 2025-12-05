@@ -1,0 +1,8 @@
+{
+  "name": "leihbackend",
+  "prettier": {
+    "tabWidth": 4,
+    "semi": false,
+    "singleQuote": true
+  }
+}
