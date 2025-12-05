@@ -25,12 +25,12 @@ onRecordCreateRequest((e) => {
             'customer_name',
             'customer_email',
             'customer_phone',
-            'comments', 
+            'comments',
             'done',
             'is_new_customer',
             'pickup',
             'items',
-            'collectionId', 
+            'collectionId',
             'collectionName',
             'updated',
             'expand',
@@ -39,7 +39,7 @@ onRecordCreateRequest((e) => {
 
     autofillCustomer(e.record)
     validate(e.record)
-    
+
     e.next()
 
     const recordId = e.record.get('id')

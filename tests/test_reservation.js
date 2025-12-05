@@ -48,7 +48,7 @@ describe('Reservations', () => {
     })
 
     describe('Creation', () => {
-        it('should create a reservation for an existing customer', async () => {
+        it('should create a reservation for an existing customer by iid', async () => {
             let reservation = await anonymousClient.collection('reservation').create({
                 customer_iid: 1000,
                 items: [item1.id],
@@ -73,6 +73,7 @@ describe('Reservations', () => {
             assert.equal(reservation.customer_name, `${customer1.firstname} ${customer1.lastname}`) // auto-fill
             assert.equal(reservation.customer_phone, customer1.phone) // auto-fill
             assert.equal(reservation.customer_email, customer1.email) // auto-fill
+            assert.equal(reservation.customer_iid, customer1.iid) // auto-fill
             assert.isFalse(reservation.is_new_customer) // auto-fill
 
             item1 = await client.collection('item').getOne(item1.id)
@@ -88,6 +89,63 @@ describe('Reservations', () => {
 
             item1 = await client.collection('item').getOne(item1.id)
             assert.equal(item1.status, 'instock')
+        })
+
+        it('should create a reservation for an existing customer by email', async () => {
+            let reservation = await anonymousClient.collection('reservation').create({
+                customer_email: 'johndoe@leihlokal-ka.de',
+                items: [item1.id],
+                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+            })
+            assert.isNotNull(reservation)
+            assert.doesNotHaveAnyKeys(reservation, ['customer_iid',
+                'customer_name',
+                'customer_email',
+                'customer_phone',
+                'comments',
+                'done',
+                'is_new_customer',
+                'pickup',
+                'items',
+                'collectionId',
+                'collectionName',
+                'updated',
+                'expand'])
+
+            reservation = await client.collection('reservation').getOne(reservation.id)
+            assert.equal(reservation.customer_name, `${customer1.firstname} ${customer1.lastname}`) // auto-fill
+            assert.equal(reservation.customer_phone, customer1.phone) // auto-fill
+            assert.equal(reservation.customer_email, customer1.email) // auto-fill
+            assert.equal(reservation.customer_iid, customer1.iid) // auto-fill
+            assert.isFalse(reservation.is_new_customer) // auto-fill
+
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'reserved')
+
+            const messages = await listInbox(imapClient)
+            assert.lengthOf(messages, 1)
+            assert.equal(messages[0].sender, USERNAME)
+            assert.equal(messages[0].subject, 'Wir haben deine Reservierung für 25.12.2026 18:00 Uhr erhalten')
+            assert.deepEqual(messages[0].recipients, [customer1.email])
+
+            await client.collection('reservation').delete(reservation.id)
+
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'instock')
+        })
+
+        it.only('should should not autofill customer info for non-unique email', async () => {
+            const emailCustomer2 = customer2.email
+            await client.collection('customer').update(customer2.id, { email: customer1.email })
+
+            let promise = anonymousClient.collection('reservation').create({
+                customer_email: 'johndoe@leihlokal-ka.de',
+                items: [item1.id],
+                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+            })
+            await assert.isRejected(promise)
+
+            await client.collection('customer').update(customer2.id, { email: emailCustomer2 })
         })
 
         it('should create a reservation for a new customer', async () => {

@@ -70,7 +70,7 @@ function getInactive(offsetMonths = 24, app = $app) {
 // E-Mail Sending
 
 function sendWelcomeMail(c) {
-    const { DRY_MODE } = require(`${__hooks}/constants.js`)
+    const { DRY_MODE, IMPORT_MODE } = require(`${__hooks}/constants.js`)
     const customerEmail = c.getString('email')
 
     const html = $template.loadFiles(
@@ -92,11 +92,11 @@ function sendWelcomeMail(c) {
         html,
     })
 
-    if (!DRY_MODE) $app.newMailClient().send(message)
+    if (!DRY_MODE && !IMPORT_MODE) $app.newMailClient().send(message)
 }
 
 function sendEmergencyClosingMail(c) {
-    const { DRY_MODE } = require(`${__hooks}/constants.js`)
+    const { DRY_MODE, IMPORT_MODE } = require(`${__hooks}/constants.js`)
     const customerEmail = c.getString('email')
 
     const html = $template.loadFiles(
@@ -117,11 +117,11 @@ function sendEmergencyClosingMail(c) {
         html,
     })
 
-    if (!DRY_MODE) $app.newMailClient().send(message)
+    if (!DRY_MODE && !IMPORT_MODE) $app.newMailClient().send(message)
 }
 
 function sendDeletionReminderMail(c) {
-    const { DRY_MODE } = require(`${__hooks}/constants.js`)
+    const { DRY_MODE, IMPORT_MODE } = require(`${__hooks}/constants.js`)
     const customerEmail = c.getString('email')
 
     const html = $template.loadFiles(
@@ -145,7 +145,7 @@ function sendDeletionReminderMail(c) {
     c.set('delete_reminder_sent', new DateTime())
     $app.save(c)
 
-    if (!DRY_MODE) $app.newMailClient().send(message)
+    if (!DRY_MODE && !IMPORT_MODE) $app.newMailClient().send(message)
 }
 
 module.exports = {

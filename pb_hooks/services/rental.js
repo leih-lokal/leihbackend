@@ -185,7 +185,7 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
 // E-Mail Sending
 
 function sendReminderMail(r) {
-    const { DRY_MODE } = require(`${__hooks}/constants.js`)
+    const { DRY_MODE, IMPORT_MODE } = require(`${__hooks}/constants.js`)
 
     $app.expandRecord(r, ['items', 'customer'], null)
 
@@ -219,7 +219,7 @@ function sendReminderMail(r) {
     })
 
     $app.logger().info(`Sending reminder mail for rental ${r.id} to customer ${customerEmail}.`)
-    if (!DRY_MODE) $app.newMailClient().send(message)
+    if (!DRY_MODE && !IMPORT_MODE) $app.newMailClient().send(message)
 }
 
 module.exports = {
