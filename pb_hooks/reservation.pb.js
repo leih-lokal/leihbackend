@@ -53,7 +53,7 @@ onRecordCreateRequest((e) => {
 onRecordUpdateRequest((e) => {
     if (!e.record.getBool('done')) {
         const oldRecord = $app.findRecordById('reservation', e.record.id)
-        if (oldRecord.getBool('done')) throw new BadRequestError('Can\'t undo a closed reservation')
+        if (oldRecord.getBool('done') && !e.requestEvent.request.url.rawQuery.includes('force=true')) throw new BadRequestError('Can\'t undo a closed reservation')
     }
     e.next()
 }, 'reservation')
