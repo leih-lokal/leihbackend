@@ -104,8 +104,9 @@ function validateStatus(r) {
 function validatePickup(r) {
     const { OPENING_HOURS, WEEKDAYS } = require(`${__hooks}/constants.js`)
 
-    const pickup = new Date(r.getDateTime('pickup').string().replace(' ', 'T'))
-    if (pickup < new Date()) {
+    const pickupRaw = r.getDateTime('pickup')
+    const pickup = new Date(pickupRaw.unix() * 1000)
+    if (pickupRaw.before(new DateTime())) {
         throw new BadRequestError('Pickup date must be in the future')
     }
 
