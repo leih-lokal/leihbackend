@@ -8,10 +8,8 @@ onBootstrap((e) => {
 
     e.next()
 
-    // const { getDueTomorrowRentals } = require(`${__hooks}/services/rental.js`)
-    // const dueRentals = getDueTomorrowRentals()
-    // console.log(`${dueRentals.length} rentals are due tomorrow`)
-    // console.log(dueRentals.map(r => r.getInt('iid')))
+    // const { clearReservations } = require(`${__hooks}/jobs/reservation.js`)
+    // clearReservations()
 })
 
 // https://pocketbase.io/docs/js-logging/#intercepting-logs-write
