@@ -10,6 +10,9 @@ onBootstrap((e) => {
 
     // const { clearReservations } = require(`${__hooks}/jobs/reservation.js`)
     // clearReservations()
+
+    // const { getInactive } = require(`${__hooks}/services/customer.js`)
+    // const inactiveCustomers = getInactive(24)
 })
 
 // https://pocketbase.io/docs/js-logging/#intercepting-logs-write

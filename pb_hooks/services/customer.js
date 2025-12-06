@@ -60,7 +60,7 @@ function getInactive(offsetMonths = 24, app = $app) {
     app.recordQuery('customer')
         .leftJoin("rental", $dbx.exp("customer.id = rental.customer"))
         .groupBy("customer.id")
-        .having($dbx.exp("COALESCE(MAX(rental.rented_on), customer.registered_on, customer.renewed_on) < {:refDate}", { refDate }))
+        .having($dbx.exp("MAX(COALESCE(MAX(rental.rented_on), '1970-01-01'), COALESCE(customer.registered_on, '1970-01-01'), COALESCE(customer.renewed_on, '1970-01-01')) < {:refDate}", { refDate }))
         .distinct(true)
         .all(records)
 
