@@ -18,7 +18,7 @@ describe('Items', () => {
     describe('Public items', () => {
         it('should list all', async () => {
             const items = await anonymousClient.collection('item_public').getFullList()
-            assert.deepEqual(items.map(i => i.iid), [1000, 1001, 1002])
+            assert.deepEqual(items.map(i => i.iid), [1000, 1001, 1002, 1003])
         })
 
         it('should filter by status', async () => {

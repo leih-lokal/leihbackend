@@ -248,7 +248,7 @@ describe('Rentals', () => {
     })
 
     describe('Misc', () => {
-        it('should send return reminder mails', async () => {
+        it.only('should send return reminder mails', async () => {
             const crons = await client.crons.getFullList()
             assert.includeDeepMembers(crons, [
                 {
@@ -278,7 +278,7 @@ describe('Rentals', () => {
             })
 
             await client.crons.run('send_return_reminders')
-            await setTimeout(1000)
+            await setTimeout(2000)
 
             messages = await listInbox(imapClient)
             assert.lengthOf(messages, 1)

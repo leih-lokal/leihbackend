@@ -3,6 +3,7 @@ import chaiAsPromised from 'chai-as-promised'
 import { getAnonymousClient, getClient, initImap, listInbox, getFakeMailAccount, configureSmtp, USERNAME, purgeInbox } from './base.js'
 import { assert } from 'chai'
 import { describe, it, before } from 'mocha'
+import { setTimeout } from 'timers/promises'
 
 chai.use(chaiAsPromised)
 
@@ -11,7 +12,7 @@ describe('Reservations', () => {
     let anonymousClient
     let imapClient
 
-    let item1, item2, item3
+    let item1, item2, item3, item4
     let customer1, customer2
 
     before(async () => {
@@ -32,6 +33,7 @@ describe('Reservations', () => {
         item1 = await client.collection('item').getFirstListItem('iid=1000') // apple pie
         item2 = await client.collection('item').getFirstListItem('iid=1001') // goat cheese
         item3 = await client.collection('item').getFirstListItem('iid=1002') // christmas tree
+        item4 = await client.collection('item').getFirstListItem('iid=1003') // fluffy llama
         customer1 = await client.collection('customer').getFirstListItem('iid=1000') // john
         customer2 = await client.collection('customer').getFirstListItem('iid=1001') // jane
     })
@@ -134,7 +136,7 @@ describe('Reservations', () => {
             assert.equal(item1.status, 'instock')
         })
 
-        it.only('should should not autofill customer info for non-unique email', async () => {
+        it('should not autofill customer info for non-unique email', async () => {
             const emailCustomer2 = customer2.email
             await client.collection('customer').update(customer2.id, { email: customer1.email })
 
@@ -182,6 +184,26 @@ describe('Reservations', () => {
                 customer_iid: 1000,
                 items: [item3.id],
                 pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+            })
+            await assert.isRejected(reservationPromise)
+            assert.isEmpty(await listInbox(imapClient))
+        })
+
+        it('should fail when pickup date is outside opening hours', async () => {
+            let reservationPromise = anonymousClient.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item1.id],
+                pickup: new Date(Date.parse('2026-12-27T17:00:00Z')),  // sunday
+            })
+            await assert.isRejected(reservationPromise)
+            assert.isEmpty(await listInbox(imapClient))
+        })
+
+        it('should fail when pickup date is in the past', async () => {
+            let reservationPromise = anonymousClient.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item1.id],
+                pickup: new Date().addDays(-1),
             })
             await assert.isRejected(reservationPromise)
             assert.isEmpty(await listInbox(imapClient))
@@ -260,6 +282,49 @@ describe('Reservations', () => {
         })
     })
 
+    describe('Housekeeping', () => {
+        it('should properly clean up old dangling reservations and their item statuses', async () => {
+            let newReservation = await client.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item1.id],
+                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+            })
+            assert.isNotNull(newReservation)
+            assert.isFalse(newReservation.done)
+            assert.equal(newReservation.items[0], item1.id)
+
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'reserved')
+
+            let oldReservation = await client.collection('reservation').getFirstListItem('customer_iid = 5000')
+            assert.isNotNull(oldReservation)
+            assert.isFalse(oldReservation.done)
+            assert.equal(oldReservation.items[0], item4.id)
+
+            item4 = await client.collection('item').getOne(item4.id)
+            assert.equal(item4.status, 'reserved')
+
+            await client.crons.run('clear_reservations')
+            await setTimeout(3000)
+
+            newReservation = await client.collection('reservation').getOne(newReservation.id)
+            assert.isFalse(newReservation.done)
+
+            oldReservation = await client.collection('reservation').getOne(oldReservation.id)
+            assert.isTrue(oldReservation.done)
+
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item4.status, 'reserved')
+
+            item4 = await client.collection('item').getOne(item4.id)
+            assert.equal(item4.status, 'instock')
+
+            await client.collection('reservation').update(oldReservation.id, { done: false }, { force: true })
+            await client.collection('item').update(item4.id, { status: 'reserved' })
+            await client.collection('reservation').delete(newReservation.id)
+        })
+    })
+
     describe('Other', () => {
         it('should handle reservation cancellation', async () => {
             let reservation1 = await client.collection('reservation').create({
@@ -273,7 +338,7 @@ describe('Reservations', () => {
                 pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
             })
 
-            assert.lengthOf(await client.collection('reservation').getFullList(), 2)
+            assert.lengthOf(await client.collection('reservation').getFullList(), 3)  // one old one already existed
 
             await purgeInbox(imapClient)
 
@@ -288,8 +353,8 @@ describe('Reservations', () => {
             assert.deepEqual(response, {})  // empty response
 
             const reservations = await client.collection('reservation').getFullList()
-            assert.lengthOf(reservations, 1)
-            assert.equal(reservations[0].id, reservation2.id)
+            assert.lengthOf(reservations, 2)  // one old one already existed
+            assert.equal(reservations[1].id, reservation2.id)
 
             item1 = await client.collection('item').getOne(item1.id)
             assert.equal(item1.status, 'instock')
