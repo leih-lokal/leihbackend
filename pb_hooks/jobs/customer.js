@@ -16,12 +16,12 @@ function runDeleteInactive(app = $app) {
             customerService.sendDeletionReminderMail(c)
             sleep(1000)
         } else if (remindedOn.before(refDate)) {
-            // reminded longer than x days ago
+            // reminded longer than x (grace period) days ago
             app.logger().warn(`Deleting ${email} (${c.id}) after they have not responded to reminder mail within ${DELETION_GRACE_PERIOD_DAYS} days.`)
             if (!DRY_MODE) app.delete(c)
             else app.logger().info(`Skipping deletion of ${c.id}, because running in dry mode.`)
         } else {
-            // reminded, but less than x days ago
+            // reminded, but less than x (grace period) days ago
             app.logger().info(`Currently waiting for reply to deletion reminder from ${email} (${c.id}).`)
         }
     }

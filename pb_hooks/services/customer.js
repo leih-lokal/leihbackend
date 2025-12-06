@@ -57,10 +57,12 @@ function getInactive(offsetMonths = 24, app = $app) {
 
     const refDate = new DateTime().addDate(0, -offsetMonths, 0)
 
+    // get customers whose latest interaction was before given reference date
+    // i.e. get max of (1) registration date, (2) renewal date, (3) latest rental date, (4) latest return date
     app.recordQuery('customer')
         .leftJoin("rental", $dbx.exp("customer.id = rental.customer"))
         .groupBy("customer.id")
-        .having($dbx.exp("MAX(COALESCE(MAX(rental.rented_on), '1970-01-01'), COALESCE(customer.registered_on, '1970-01-01'), COALESCE(customer.renewed_on, '1970-01-01')) < {:refDate}", { refDate }))
+        .having($dbx.exp("MAX(COALESCE(MAX(rental.rented_on), ''), COALESCE(MAX(rental.returned_on), ''), COALESCE(customer.registered_on, ''), COALESCE(customer.renewed_on, '')) < {:refDate}", { refDate }))
         .distinct(true)
         .all(records)
 
