@@ -26,6 +26,7 @@ rm CHANGELOG* LICENSE* *.zip
 ### Custom environment variables
 * `DRY_MODE`: Run the app in dry mode, i.e. don't send any mail or delete anything. Default: `true`.
 * `IMPORT_MODE`: Run the app in import mode, i.e. don't perform any sort of data validation or side effects when creating new records. Default: `false`.
+* `LOG_LEVEL`: Log level to use for stdout (0 = `INFO`, 4 = `WARN`, 8 = `ERROR`). Default: `4`.
 * `LL_INACTIVE_MONTHS`: Number of months after which a customer is considered inactive and schduled for deletion. Default: `24`.
 * `LL_DELETION_GRACE_PERIOD_DAYS`: Number of days to wait until deletion customer after reminder mail was sent. Default: `7`.
 * `LL_NO_WELCOME`: Do not send welcome e-mails upon new customer registration. Default: `false`.

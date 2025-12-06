@@ -26,7 +26,16 @@ const NO_WELCOME = $os.getenv('LL_NO_WELCOME') === 'true'
 const NO_DELETE_INACTIVE = $os.getenv('LL_NO_DELETE_INACTIVE') === 'true'
 const DRY_MODE = $os.getenv('DRY_MODE') !== 'false'
 const IMPORT_MODE = $os.getenv('IMPORT_MODE') === 'true'
+const LOG_LEVEL = parseInt($os.getenv('LOG_LEVEL') || '4')  // warning
 
 module.exports = {
-    OPENING_HOURS, WEEKDAYS, INACTIVE_MONTHS, DELETION_GRACE_PERIOD_DAYS, NO_WELCOME, NO_DELETE_INACTIVE, DRY_MODE, IMPORT_MODE,
+    OPENING_HOURS,
+    WEEKDAYS,
+    INACTIVE_MONTHS,
+    DELETION_GRACE_PERIOD_DAYS,
+    NO_WELCOME,
+    NO_DELETE_INACTIVE,
+    DRY_MODE,
+    IMPORT_MODE,
+    LOG_LEVEL,
 }
