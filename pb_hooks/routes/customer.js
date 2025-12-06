@@ -1,6 +1,6 @@
 function handleGetCsv(e) {
-    const {exportCsv} = require(`${__hooks}/services/customer`)
-    
+    const {exportCsv} = require(`${__hooks}/services/customer.js`)
+
     const result = exportCsv()
     const ts = new DateTime().unix()
 

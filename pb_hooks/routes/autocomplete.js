@@ -1,5 +1,5 @@
 function handleGetStreet(e) {
-    const {getUniqueStreets} = require(`${__hooks}/services/customer`)
+    const {getUniqueStreets} = require(`${__hooks}/services/customer.js`)
 
     const q = e.request.url.query().get('q')
     if (!q || q.length < 3) throw new BadRequestError('No query string provided')

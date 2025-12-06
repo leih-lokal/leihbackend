@@ -1,5 +1,5 @@
 function handleGetCancel(e) {
-    const {remove: deleteReservation, sendCancellationMail} = require(`${__hooks}/services/reservation`)
+    const {remove: deleteReservation, sendCancellationMail} = require(`${__hooks}/services/reservation.js`)
     const {fmtDateTime} = require(`${__hooks}/utils/common.js`)
 
     const token = e.request.url.query().get('token')
@@ -25,7 +25,7 @@ function handleGetCancel(e) {
 }
 
 function handleGetCsv(e) {
-    const {exportCsv} = require(`${__hooks}/services/reservation`)
+    const {exportCsv} = require(`${__hooks}/services/reservation.js`)
 
     const result = exportCsv()
     const ts = new DateTime().unix()
