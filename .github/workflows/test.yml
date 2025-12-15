@@ -1,0 +1,51 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: tests/package-lock.json
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sqlite3 unzip
+
+      - name: Setup PocketBase
+        run: |
+          URL=$(curl -s https://api.github.com/repos/pocketbase/pocketbase/releases/latest | jq -r '.assets[] | select(.name | test("linux_amd64.zip$")) | .browser_download_url')
+          wget -q -O pocketbase.zip $URL
+          unzip -o pocketbase.zip
+          chmod +x pocketbase
+          ./pocketbase --version
+
+      - name: Install test dependencies
+        working-directory: tests
+        run: npm ci
+
+      - name: Get Date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Cache SMTP credentials
+        uses: actions/cache@v5
+        with:
+          path: /tmp/.leihbackend_smtp.json
+          key: smtp-credentials-${{ runner.os }}-${{ steps.date.outputs.date }}
+
+      - name: Run tests
+        working-directory: tests
+        run: bash run_tests.sh
