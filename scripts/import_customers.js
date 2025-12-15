@@ -29,6 +29,13 @@ async function mapEntity(e) {
     let emailMatch = email ? email.match(/(?!\.)(?!.*\.\.)([a-z0-9_'+\-\.]*)[a-z0-9_'+\-]@([a-z0-9][a-z0-9\-]*\.)+[a-z]{2,}/) : null
     email = emailMatch ? emailMatch[0] : FALLBACK_EMAIL
 
+    let remark = e.remark?.trim() || ''
+    let highlightColor = e.highlight?.trim() || null
+    if (phone === FALLBACK_PHONE || email === FALLBACK_EMAIL) {
+        highlightColor = 'rgb(255,255,0)'
+        remark = 'E-Mail und / oder Telefon ungültig! ' + remark
+    }
+
     return {
         iid: e.id,
         legacy_rev: e._rev,
@@ -40,8 +47,8 @@ async function mapEntity(e) {
         city: e.city?.trim() || null,
         phone,
         heard: HEARD_CHOICES.includes(e.heard?.trim()) ? e.heard?.trim() : HEARD_CHOICES.at(-1),
-        remark: e.remark?.trim() || null,
-        highlight_color: e.highlight?.trim() || null,
+        remark,
+        highlight_color: highlightColor,
         newsletter: e.subscribed_to_newsletter || false,
         registered_on: new Date(e.registration_date),
         renewed_on: e.renewed_on ? new Date(e.renewed_on) : null,
