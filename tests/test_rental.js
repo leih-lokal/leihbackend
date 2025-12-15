@@ -1,6 +1,15 @@
 import * as chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
-import { getAnonymousClient, getClient, initImap, listInbox, getFakeMailAccount, configureSmtp, USERNAME, purgeInbox } from './base.js'
+import {
+    getAnonymousClient,
+    getClient,
+    initImap,
+    listInbox,
+    getFakeMailAccount,
+    configureSmtp,
+    USERNAME,
+    purgeInbox,
+} from './base.js'
 import { assert } from 'chai'
 import { describe, it, before } from 'mocha'
 import { setTimeout } from 'timers/promises'
@@ -32,8 +41,12 @@ describe('Rentals', () => {
     beforeEach(async () => {
         item1 = await client.collection('item').getFirstListItem('iid=1000') // apple pie
         item2 = await client.collection('item').getFirstListItem('iid=1001') // goat cheese
-        customer1 = await client.collection('customer').getFirstListItem('iid=1000') // john
-        customer2 = await client.collection('customer').getFirstListItem('iid=1001') // jane
+        customer1 = await client
+            .collection('customer')
+            .getFirstListItem('iid=1000') // john
+        customer2 = await client
+            .collection('customer')
+            .getFirstListItem('iid=1001') // jane
     })
 
     afterEach(async () => {
@@ -57,20 +70,36 @@ describe('Rentals', () => {
         })
 
         it('should return correct customer rental statistics', async () => {
-            let stats = await client.collection('customer_rentals').getFullList()
+            let stats = await client
+                .collection('customer_rentals')
+                .getFullList()
             assert.lengthOf(stats, 2)
             assert.lengthOf(
                 stats.filter((e) => e.id === customer1.id),
                 1,
             )
-            assert.equal(stats.filter((e) => e.id === customer1.id)[0].num_rentals, 1)
-            assert.equal(stats.filter((e) => e.id === customer1.id)[0].num_active_rentals, 0)
+            assert.equal(
+                stats.filter((e) => e.id === customer1.id)[0].num_rentals,
+                1,
+            )
+            assert.equal(
+                stats.filter((e) => e.id === customer1.id)[0]
+                    .num_active_rentals,
+                0,
+            )
             assert.lengthOf(
                 stats.filter((e) => e.id === customer2.id),
                 1,
             )
-            assert.equal(stats.filter((e) => e.id === customer2.id)[0].num_rentals, 1)
-            assert.equal(stats.filter((e) => e.id === customer2.id)[0].num_active_rentals, 1)
+            assert.equal(
+                stats.filter((e) => e.id === customer2.id)[0].num_rentals,
+                1,
+            )
+            assert.equal(
+                stats.filter((e) => e.id === customer2.id)[0]
+                    .num_active_rentals,
+                1,
+            )
         })
     })
 
@@ -126,7 +155,9 @@ describe('Rentals', () => {
         })
 
         it('should fail when renting an unavailable item', async () => {
-            await client.collection('item').update(item1.id, { status: 'repairing' })
+            await client
+                .collection('item')
+                .update(item1.id, { status: 'repairing' })
 
             try {
                 const rentalPromise = client.collection('rental').create({
@@ -139,7 +170,9 @@ describe('Rentals', () => {
                 })
                 await assert.isRejected(rentalPromise)
             } finally {
-                await client.collection('item').update(item1.id, { status: 'instock' }) // clean up
+                await client
+                    .collection('item')
+                    .update(item1.id, { status: 'instock' }) // clean up
             }
         })
 
@@ -153,7 +186,9 @@ describe('Rentals', () => {
                 },
             })
 
-            await client.collection('item').update(item1.id, { status: 'repairing' })
+            await client
+                .collection('item')
+                .update(item1.id, { status: 'repairing' })
 
             item1 = await client.collection('item').getOne(item1.id)
             assert.equal(item1.status, 'repairing')
@@ -163,7 +198,9 @@ describe('Rentals', () => {
             item1 = await client.collection('item').getOne(item1.id)
             assert.equal(item1.status, 'repairing')
 
-            await client.collection('item').update(item1.id, { status: 'instock' }) // clean up
+            await client
+                .collection('item')
+                .update(item1.id, { status: 'instock' }) // clean up
         })
 
         it('should not update item status if rental properties edited', async () => {
@@ -268,7 +305,7 @@ describe('Rentals', () => {
             })
 
             await client.crons.run('send_return_reminders')
-            await setTimeout(1000)
+            await setTimeout(3000)
 
             let messages = await listInbox(imapClient)
             assert.lengthOf(messages, 0)
@@ -278,12 +315,15 @@ describe('Rentals', () => {
             })
 
             await client.crons.run('send_return_reminders')
-            await setTimeout(2000)
+            await setTimeout(3000)
 
             messages = await listInbox(imapClient)
             assert.lengthOf(messages, 1)
             assert.equal(messages[0].sender, USERNAME)
-            assert.equal(messages[0].subject, '[leih.lokal] Rückgabe von Gegenständen morgen fällig')
+            assert.equal(
+                messages[0].subject,
+                '[leih.lokal] Rückgabe von Gegenständen morgen fällig',
+            )
             assert.deepEqual(messages[0].recipients, [customer1.email])
 
             await client.collection('rental').delete(rental.id)
