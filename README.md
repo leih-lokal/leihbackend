@@ -83,27 +83,8 @@ cd tests && bash run_tests.sh
 ```
 
 ## Roadmap
-For the long-term roadmap and future plans for out software setup, please refer to the [wiki](https://wiki.leihlokal-ka.de/software/roadmap). Currently, we're on the process of implementing stage 1.
+For the long-term roadmap and future plans for out software setup, please refer to the [wiki](https://wiki.leihlokal-ka.de/software/roadmap).
 
-### Stage 1: The "Intermediate" variant
-For details, see wiki entry.
-
-* [x] Basic data model and API endpoints for items
-* [x] Basic data model and API endpoints for reservations
-* [x] Reservation validation and item status update
-* [x] Reservation e-mail confirmations
-* [x] Reservation cancellation
-* [ ] New customer-facing product catalog (Ruby)
-* [ ] New click & collect (aka. reservations) frontend (Ruby)
-* [x] Replace legacy API / database calls for items in _LeihLokalVerwaltung_ ("_LLV_")
-* [ ] Simple reservations view in _LLV_ to replace Excel sheet and [`create_click_collect_overview.py`](https://github.com/leih-lokal/scripts/blob/master/create_clickcollect_overview.py)
-* [ ] ...
-* [ ] Sunset WooCommerce and _item_-part of CouchDB
-
-### Stage 2: The "v2"
-* [x] Replace legacy API / database calls for items in _LLV_
-* [x] Replace legacy API / database calls for customers in _LLV_
-* [x] Replace legacy API / database calls for rentals in _LLV_
-* [x] Add new view view reservations in LLV
-* [ ] ...
-* [ ] Sunset CouchDB entirely
+## Developer Notes
+### Deletion
+* Deletions from customers cascade to all entities referencing customers using a foreign key, i.e. deleting a customer will also remove all their rental objects.
