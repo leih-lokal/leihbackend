@@ -229,6 +229,43 @@ describe('Rentals', () => {
             assert.equal(item1.status, 'instock')
         })
 
+        it('should not retroactively update item status of already returned rentals', async () => {
+            let customer = await client.collection('customer').create({
+                iid: 2000,
+                firstname: 'Justus',
+                lastname: 'Jonas',
+                email: 'justusjonas@leihlokal-ka.de',
+                phone: '+49123456789012',
+                registered_on: new Date(),
+            })
+
+            let rental = await client.collection('rental').create({
+                customer: customer.id,
+                items: [item1.id],
+                rented_on: new Date(),
+                requested_copies: {
+                    [item1.id]: 3, // item has 3 copies available (4 total, one rented by jane)
+                },
+                returned_on: new Date().addYears(-1),
+            })
+
+            // manually make item unavailable (e.g. because rented by someone else)
+            await client.collection('item').update(item1.id, {status : 'outofstock' })
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'outofstock')
+
+            // delete customer, cascades to deleting rental
+            await client.collection('customer').delete(customer.id)
+
+            await assert.isRejected(client.collection('customer').getOne(customer.id))
+            await assert.isRejected(client.collection('rental').getOne(rental.id))
+
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'outofstock')
+
+            await client.collection('item').update(item1.id, {status : 'instock' })  // reset / clear test data
+        })
+
         it('should update item stock correctly when a rental is changed', async () => {
             let rental = await client.collection('rental').create({
                 customer: customer1.id,

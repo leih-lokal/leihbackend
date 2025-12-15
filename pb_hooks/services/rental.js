@@ -119,8 +119,15 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
     const itemService = require(`${__hooks}/services/item.js`)
     const reservationService = require(`${__hooks}/services/reservation.js`)
 
+    if (oldRental && !oldRental.getDateTime('returned_on').isZero()) {
+        // don't retroactively update item statuses of already returned rentals
+        return
+    }
+
     const returnDate = rental.getDateTime('returned_on')
-    const isReturn = !returnDate.isZero() && !returnDate.equal(oldRental.getDateTime('returned_on')) && returnDate.before(new DateTime())
+    const isReturn = !returnDate.isZero()
+        && (oldRental && !returnDate.equal(oldRental.getDateTime('returned_on')))
+        && returnDate.before(new DateTime())
     const returnItems = isReturn || isDelete
 
     const requestedCopiesNew = JSON.parse(rental.getRaw('requested_copies')) || {}
