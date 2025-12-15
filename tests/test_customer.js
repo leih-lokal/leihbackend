@@ -96,7 +96,7 @@ describe('Customer', () => {
 
             const t0 = new Date()
             await client.crons.run('run_customer_deletion')
-            await setTimeout(3000)
+            await setTimeout(3100)
 
             let messages = await listInbox(imapClient)
             assert.lengthOf(messages, 1)
@@ -136,7 +136,7 @@ describe('Customer', () => {
             })
 
             await client.crons.run('run_customer_deletion')
-            await setTimeout(3000)
+            await setTimeout(3100)
 
             let messages = await listInbox(imapClient) // should not send a deletion reminder email
             assert.lengthOf(messages, 0)
@@ -166,7 +166,7 @@ describe('Customer', () => {
             })
 
             await client.crons.run('run_customer_deletion')
-            await setTimeout(3000)
+            await setTimeout(3100)
 
             let messages = await listInbox(imapClient)
             assert.lengthOf(messages, 1)
@@ -191,7 +191,7 @@ describe('Customer', () => {
             await purgeInbox(imapClient)
 
             await client.crons.run('run_customer_deletion')
-            await setTimeout(3000)
+            await setTimeout(3100)
 
             let messages = await listInbox(imapClient)
             assert.lengthOf(messages, 0)
@@ -216,7 +216,7 @@ describe('Customer', () => {
             await purgeInbox(imapClient)
 
             await client.crons.run('run_customer_deletion')
-            await setTimeout(3000)
+            await setTimeout(3100)
 
             let logs = await client.logs.getList(1, 10, { sort: '-created' })
             let filteredLogs = logs.items.filter((l) => l.message === `Deleting ${customer.email} (${customer.id}) after they have not responded to reminder mail within 7 days.`)

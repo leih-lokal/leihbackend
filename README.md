@@ -68,6 +68,10 @@ No public access.
 * Reservation cancellation endpoint `/reservation/cancel` is public (but requires the cancellation token, obviously)
 
 ## Tests
+> [!IMPORTANT]
+> Test cases are currently implemented in a way such that depend on one another. That is, if one test fails, subsequent tests are likely to fail as well due to inconsistent state, because tests currently are responsible for properly cleaning up their own data. 
+> We should change tests to work **indepdendently**.
+
 ### Requirements
 * NodeJS
 * sqlite3

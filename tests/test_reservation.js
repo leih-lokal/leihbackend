@@ -69,7 +69,9 @@ describe('Reservations', () => {
                 'collectionId',
                 'collectionName',
                 'updated',
-                'expand'])
+                'otp',
+                'on_premises',
+                'expand',])
 
             reservation = await client.collection('reservation').getOne(reservation.id)
             assert.equal(reservation.customer_name, `${customer1.firstname} ${customer1.lastname}`) // auto-fill
@@ -112,6 +114,8 @@ describe('Reservations', () => {
                 'collectionId',
                 'collectionName',
                 'updated',
+                'otp',
+                'on_premises',
                 'expand'])
 
             reservation = await client.collection('reservation').getOne(reservation.id)

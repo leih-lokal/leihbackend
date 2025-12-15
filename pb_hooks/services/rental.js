@@ -114,6 +114,7 @@ function validateStatus(r) {
 // meant to be called right before rental is saved
 function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
     // TODO: handle (or forbid) the case where a rental is returned and it's item list is updated at the same time (currently unhandled)
+    // TODO: handle "partially" returned rentals (see `returned_items` field (https://github.com/leih-lokal/leihbackend/issues/4)
 
     const itemService = require(`${__hooks}/services/item.js`)
     const reservationService = require(`${__hooks}/services/reservation.js`)

@@ -248,7 +248,7 @@ describe('Rentals', () => {
     })
 
     describe('Misc', () => {
-        it.only('should send return reminder mails', async () => {
+        it('should send return reminder mails', async () => {
             const crons = await client.crons.getFullList()
             assert.includeDeepMembers(crons, [
                 {
