@@ -2,12 +2,8 @@
 
 function countActiveByItem(itemId, app = $app) {
     try {
-        const result = new DynamicModel({ "num_active_rentals": 0 })
-        app.db()
-            .select("num_active_rentals")
-            .from("item_rentals")
-            .where($dbx.exp("id = {:itemId}", { itemId }))
-            .one(result)
+        const result = new DynamicModel({ num_active_rentals: 0 })
+        app.db().select('num_active_rentals').from('item_rentals').where($dbx.exp('id = {:itemId}', { itemId })).one(result)
         return result.num_active_rentals
     } catch (e) {
         return -1
@@ -18,20 +14,22 @@ function countCopiesActiveByItem(itemId, app = $app) {
     // TODO: implement in sql instead of js
     const activeRentals = app.findRecordsByFilter('rental', `items ~ '${itemId}' && returned_on = ''`)
     return activeRentals
-        .map(r => r.get('requested_copies')[itemId] || 1) // 1 for legacy support
+        .map((r) => r.get('requested_copies')[itemId] || 1) // 1 for legacy support
         .reduce((acc, count) => acc + count, 0)
 }
 
 function getDueTodayRentals(app = $app) {
     const records = app.findAllRecords('rental',
-        $dbx.exp('substr(expected_on, 0, 11) = current_date')
+        $dbx.exp('substr(expected_on, 0, 11) = current_date'),
+        $dbx.or($dbx.hashExp({ returned_on: '' }), $dbx.hashExp({ returned_on: null }))
     )
     return records
 }
 
 function getDueTomorrowRentals(app = $app) {
     const records = app.findAllRecords('rental',
-        $dbx.exp("substr(expected_on, 0, 11) = date(current_date, '+1 day')")
+        $dbx.exp("substr(expected_on, 0, 11) = date(current_date, '+1 day')"),
+        $dbx.or($dbx.hashExp({ returned_on: '' }), $dbx.hashExp({ returned_on: null }))
     )
     return records
 }
@@ -59,16 +57,18 @@ function exportCsv(app = $app) {
     app.expandRecords(result, ['customer', 'items'])
 
     const records = result
-        .map(r => r.publicExport())
-        .map(r => {
+        .map((r) => r.publicExport())
+        .map((r) => {
             const customer = r.expand.customer.publicExport()
-            const items = r.expand.items.map(e => e.publicExport())
+            const items = r.expand.items.map((e) => e.publicExport())
 
             const requestedCopies = r.requested_copies || {}
-            const itemsDisplay = items.map(i => {
-                const copyCount = requestedCopies[i.id] || 1
-                return copyCount > 1 ? `${i.iid} (×${copyCount})` : i.iid
-            }).join(', ')
+            const itemsDisplay = items
+                .map((i) => {
+                    const copyCount = requestedCopies[i.id] || 1
+                    return copyCount > 1 ? `${i.iid} (×${copyCount})` : i.iid
+                })
+                .join(', ')
 
             return {
                 id: r.id,
@@ -95,7 +95,7 @@ function validate(r) {
 }
 
 function validateStatus(r) {
-    const items = $app.findRecordsByIds('item', r.getStringSlice('items'))  // explicitly not using record expansion here, because would yield empty result for whatever reason
+    const items = $app.findRecordsByIds('item', r.getStringSlice('items')) // explicitly not using record expansion here, because would yield empty result for whatever reason
     const requestedCopies = JSON.parse(r.getRaw('requested_copies'))
 
     for (const item of items) {
@@ -103,9 +103,7 @@ function validateStatus(r) {
 
         const numTotal = item.getInt('copies')
         const numAvailable = numTotal - countCopiesActiveByItem(item)
-        const numRequested = (requestedCopies && (item.id in requestedCopies))
-            ? requestedCopies[item.id]
-            : 1  // backwards compatibility
+        const numRequested = requestedCopies && item.id in requestedCopies ? requestedCopies[item.id] : 1 // backwards compatibility
         if (numRequested > numAvailable) throw new BadRequestError(`Item ${item.getInt('iid')} is not available for rental.`)
     }
 }
@@ -125,9 +123,7 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
     }
 
     const returnDate = rental.getDateTime('returned_on')
-    const isReturn = !returnDate.isZero()
-        && (oldRental && !returnDate.equal(oldRental.getDateTime('returned_on')))
-        && returnDate.before(new DateTime())
+    const isReturn = !returnDate.isZero() && oldRental && !returnDate.equal(oldRental.getDateTime('returned_on')) && returnDate.before(new DateTime())
     const returnItems = isReturn || isDelete
 
     const requestedCopiesNew = JSON.parse(rental.getRaw('requested_copies')) || {}
@@ -145,22 +141,23 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
         itemCountsDiff[itemId] -= count
     })
 
-    const itemsAll = app.findRecordsByIds('item', Object.keys(itemCountsDiff))  // explicitly not using record expansion here, because would yield empty result for whatever reason
+    const itemsAll = app.findRecordsByIds('item', Object.keys(itemCountsDiff)) // explicitly not using record expansion here, because would yield empty result for whatever reason
 
-    itemsAll.forEach(item => {
+    itemsAll.forEach((item) => {
         const itemId = item.id
         const itemStatus = item.getString('status')
-        const isUpdate = item.id in itemCountsOld  // whether the rental is updated (not created new) and this item was included before
+        const isUpdate = item.id in itemCountsOld // whether the rental is updated (not created new) and this item was included before
 
         const numTotal = item.getInt('copies')
         const numRequested = itemCountsDiff[itemId]
 
         if (numRequested > 0 && itemStatus !== 'instock') throw new BadRequestError(`Can't rent item ${itemId} (${item.getInt('iid')}), because not in stock`)
 
-        const numRented = app.findRecordsByFilter('rental', `items ~ '${itemId}' && returned_on = ''`)
-            .filter(r => isUpdate || r.id !== rental.id)  // exclude self for new rentals (record already exists at this point)
-            .map(r => JSON.parse(r.getRaw('requested_copies')))
-            .map(rc => rc ? rc[itemId] : 1) // 1 for legacy support
+        const numRented = app
+            .findRecordsByFilter('rental', `items ~ '${itemId}' && returned_on = ''`)
+            .filter((r) => isUpdate || r.id !== rental.id) // exclude self for new rentals (record already exists at this point)
+            .map((r) => JSON.parse(r.getRaw('requested_copies')))
+            .map((rc) => (rc ? rc[itemId] : 1)) // 1 for legacy support
             .reduce((acc, count) => acc + count, 0)
         // For simplicity, we currently don't consider the number of copies for reservations.
         // If an item is reserved, we implicitly assume all copies of it to be served, otherwise things get confusing
@@ -176,7 +173,7 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
             app.logger().info(`Setting item ${item.id} to outofstock (${numRented} copies rented, ${numAvailable} available, ${numReservations} active reservations)`)
             itemService.setStatus(item, 'outofstock', app)
         } else if (numRemaining > 0) {
-            if (!(['outofstock', 'instock', 'reserved']).includes(itemStatus)) return  // don't make repairing, deleted, etc. available again when old rental was deleted or sth.
+            if (!['outofstock', 'instock', 'reserved'].includes(itemStatus)) return // don't make repairing, deleted, etc. available again when old rental was deleted or sth.
 
             // If a rental is returned (or deleted from the database) and we do have an active reservation, reset the item's availability status to "reserved" to avoid inconsistencies.
             // To make it "instock" again, clear the reservation entry or mark it as done.
@@ -202,11 +199,8 @@ function sendReminderMail(r) {
     // Get requested_copies to show copy counts in email
     const requestedCopies = r.get('requested_copies') || {}
 
-    const html = $template.loadFiles(
-        `${__hooks}/views/layout.html`,
-        `${__hooks}/views/mail/return_reminder.html`
-    ).render({
-        items: r.expandedAll('items').map(i => {
+    const html = $template.loadFiles(`${__hooks}/views/layout.html`, `${__hooks}/views/mail/return_reminder.html`).render({
+        items: r.expandedAll('items').map((i) => {
             const copyCount = requestedCopies[i.id] || 1
             return {
                 iid: i.getInt('iid'),

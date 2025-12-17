@@ -365,5 +365,26 @@ describe('Rentals', () => {
 
             await client.collection('rental').delete(rental.id)
         })
+
+        it('should not send return reminder for already returned rentals', async () => {
+            let rental = await client.collection('rental').create({
+                customer: customer1.id,
+                items: [item1.id],
+                rented_on: new Date(),
+                expected_on: new Date().addHours(24),
+                returned_on: new Date(),
+                requested_copies: {
+                    [item1.id]: 1,
+                },
+            })
+
+            await client.crons.run('send_return_reminders')
+            await setTimeout(3000)
+
+            let messages = await listInbox(imapClient)
+            assert.lengthOf(messages, 0)
+
+            await client.collection('rental').delete(rental.id)
+        })
     })
 })
