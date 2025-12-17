@@ -3,12 +3,13 @@ const progress = require('cli-progress')
 const { readFileSync } = require('fs')
 const { exit } = require('process')
 const levenshtein = require('js-levenshtein')
+const { mapToBaseColor } = require('./utils')
 
 const DRY = false
 const POCKETBASE_HOST = 'http://127.0.0.1:8090'
 const POCKETBASE_USER = 'dev@leihlokal-ka.de'
 const POCKETBASE_PASSWORD = 'leihenistdasneuekaufen'  // testing credentials only
-const COUCHDB_DUMP_FILE = '../data/leihlokal_25-12-02_20-00-01.json'
+const COUCHDB_DUMP_FILE = '../data/leihlokal_25-12-15_20-00-01.json'
 
 const CATEGORIES = ['Freizeit', 'Garten', 'Haushalt', 'Heimwerken', 'Kinder', 'Küche', 'Sonstige']
 
@@ -42,7 +43,7 @@ async function mapEntity(e) {
     formData.append('deposit', e.deposit)
     formData.append('parts', parseInt((e.parts || '1').replace(/[^\d]+/g, '')) || 1)
     formData.append('copies', e.exists_more_than_once ? 1024 : 1)
-    if (e.highlight) formData.append('highlight_color', e.highlight.trim())
+    if (e.highlight) formData.append('highlight_color', mapToBaseColor(e.highlight?.trim()))
     if (e.synonyms) formData.append('synonyms', e.synonyms.trim())
     if (e.description) formData.append('description', e.description.trim())
     if (e.internal_note) formData.append('internal_note', e.internal_note.trim())
@@ -71,7 +72,7 @@ async function run() {
         .filter(d => d.name !== '')
 
     console.log('Fetching existing items ...')
-    const existingItems = await pb.collection('item').getFullList({ fields: 'id,iid,legacy_rev' })
+    const existingItems = [] // await pb.collection('item').getFullList({ fields: 'id,iid,legacy_rev' })
     const nonExistingItems = items.filter(e => !existingItems.find(e1 => e1.iid === e.id))
     const updatedItems = items.filter(e => existingItems.find(e1 => e1.iid === e.id && e1.legacy_rev !== e._rev))
     const failedItemIds = new Set()

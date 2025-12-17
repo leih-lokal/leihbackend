@@ -6,7 +6,7 @@ const { exit, argv } = require('process')
 const POCKETBASE_HOST = 'http://127.0.0.1:8090'
 const POCKETBASE_USER = 'dev@leihlokal-ka.de'
 const POCKETBASE_PASSWORD = 'leihenistdasneuekaufen'  // testing credentials only
-const COUCHDB_DUMP_FILE = '../data/leihlokal_25-12-02_20-00-01.json'
+const COUCHDB_DUMP_FILE = '../data/leihlokal_25-12-15_20-00-01.json'
 
 const activeOnly = argv.includes('--active-only')
 const now = new Date()

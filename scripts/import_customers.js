@@ -2,12 +2,13 @@ const PocketBase = require('pocketbase/cjs')
 const progress = require('cli-progress')
 const { readFileSync } = require('fs')
 const { exit } = require('process')
+const { mapToBaseColor, COLOR_YELLOW } = require('./utils')
 
 const DRY = false
 const POCKETBASE_HOST = 'http://127.0.0.1:8090'
 const POCKETBASE_USER = 'dev@leihlokal-ka.de'
 const POCKETBASE_PASSWORD = 'leihenistdasneuekaufen'  // testing credentials only
-const COUCHDB_DUMP_FILE = '../data/leihlokal_25-12-02_20-00-01.json'
+const COUCHDB_DUMP_FILE = '../data/leihlokal_25-12-15_20-00-01.json'
 
 const FALLBACK_PHONE = '00000'
 const FALLBACK_EMAIL = 'noemail@example.org'
@@ -30,9 +31,9 @@ async function mapEntity(e) {
     email = emailMatch ? emailMatch[0] : FALLBACK_EMAIL
 
     let remark = e.remark?.trim() || ''
-    let highlightColor = e.highlight?.trim() || null
+    let highlightColor = mapToBaseColor(e.highlight?.trim()) || null
     if (phone === FALLBACK_PHONE || email === FALLBACK_EMAIL) {
-        highlightColor = 'rgb(255,255,0)'
+        highlightColor = COLOR_YELLOW
         remark = 'E-Mail und / oder Telefon ungültig! ' + remark
     }
 
@@ -119,4 +120,4 @@ async function run() {
 console.log('WARNING: Make sure to turn off welcome e-mails before running the import script !!!')
 console.log('You got 10 seconds to abort this ...')
 
-setTimeout(() => run(), 10 * 1000)
+setTimeout(() => run(), !DRY ? 10 * 1000 : 0)
