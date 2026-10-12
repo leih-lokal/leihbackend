@@ -55,7 +55,7 @@ describe('Reservations', () => {
         it('should create a reservation for an existing customer by iid', async () => {
             let reservation = await anonymousClient.collection('reservation').create({
                 customer_iid: 1000,
-                items: [item1.id],
+                items: [item2.id],
                 pickup,
             })
             assert.isNotNull(reservation)
@@ -82,8 +82,8 @@ describe('Reservations', () => {
             assert.equal(reservation.customer_iid, customer1.iid) // auto-fill
             assert.isFalse(reservation.is_new_customer) // auto-fill
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'reserved')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
 
             const messages = await listInbox(imapClient)
             assert.lengthOf(messages, 1)
@@ -93,14 +93,14 @@ describe('Reservations', () => {
 
             await client.collection('reservation').delete(reservation.id)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'instock')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'instock')
         })
 
         it('should create a reservation for an existing customer by email', async () => {
             let reservation = await anonymousClient.collection('reservation').create({
                 customer_email: 'johndoe@leihlokal-ka.de',
-                items: [item1.id],
+                items: [item2.id],
                 pickup,
             })
             assert.isNotNull(reservation)
@@ -127,8 +127,8 @@ describe('Reservations', () => {
             assert.equal(reservation.customer_iid, customer1.iid) // auto-fill
             assert.isFalse(reservation.is_new_customer) // auto-fill
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'reserved')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
 
             const messages = await listInbox(imapClient)
             assert.lengthOf(messages, 1)
@@ -138,8 +138,8 @@ describe('Reservations', () => {
 
             await client.collection('reservation').delete(reservation.id)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'instock')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'instock')
         })
 
         it('should list deposits in the confirmation mail', async () => {
@@ -283,65 +283,123 @@ describe('Reservations', () => {
         it('should free up item when reservation is marked as done', async () => {
             let reservation = await anonymousClient.collection('reservation').create({
                 customer_iid: 1000,
-                items: [item1.id],
+                items: [item2.id],
                 pickup,
             })
             assert.isNotNull(reservation)
 
             await purgeInbox(imapClient)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'reserved')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
 
             await client.collection('reservation').update(reservation.id, {
                 done: true
             })
             assert.isEmpty(await listInbox(imapClient))  // no mail sent for update
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'instock')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'instock')
         })
 
         it('should properly update item statuses of modified reservation', async () => {
             let reservation = await anonymousClient.collection('reservation').create({
                 customer_iid: 1000,
-                items: [item1.id],
+                items: [item2.id],
                 pickup,
             })
             assert.isNotNull(reservation)
 
-            item1 = await client.collection('item').getOne(item1.id)
             item2 = await client.collection('item').getOne(item2.id)
-            assert.equal(item1.status, 'reserved')
-            assert.equal(item2.status, 'instock')
+            assert.equal(item2.status, 'reserved')
 
             await client.collection('reservation').update(reservation.id, {
-                items: [item2.id],
+                items: [item1.id],
             })
 
             item1 = await client.collection('item').getOne(item1.id)
             item2 = await client.collection('item').getOne(item2.id)
-            assert.equal(item1.status, 'instock')
-            assert.equal(item2.status, 'reserved')
+            assert.equal(item1.status, 'instock') // multiple copies, one is reserved now
+            assert.equal(item2.status, 'instock')
         })
 
         it('should not update item status when changing other fields', async () => {
             let reservation = await anonymousClient.collection('reservation').create({
                 customer_iid: 1000,
-                items: [item1.id],
+                items: [item2.id],
                 pickup,
             })
             assert.isNotNull(reservation)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'reserved')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
 
             await client.collection('reservation').update(reservation.id, {
                 comments: 'foobar',
             })
 
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
+        })
+    })
+
+    describe('Copies', () => {
+        it('should reserve one copy per reservation of items with multiple copies', async () => {
+            // item1 has 4 copies, one of which is rented by jane
+            const reserve = () => anonymousClient.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item1.id],
+                pickup,
+            })
+
+            await reserve()
+            await reserve()
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'instock')  // one copy left
+
+            await reserve()
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'reserved')  // all remaining copies reserved
+
+            await assert.isRejected(reserve())
+        })
+
+        it('should make a copy available again when one of multiple reservations is cancelled', async () => {
+            const reserve = () => client.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item1.id],
+                pickup,
+            })
+
+            const reservations = [await reserve(), await reserve(), await reserve()]
             item1 = await client.collection('item').getOne(item1.id)
             assert.equal(item1.status, 'reserved')
+
+            await client.collection('reservation').update(reservations[0].id, { done: true })
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'instock')
+
+            await reserve()
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'reserved')
+        })
+
+        it('should update item status when the number of copies changes', async () => {
+            await client.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item2.id],
+                pickup,
+            })
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
+
+            await client.collection('item').update(item2.id, { copies: 2 })
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'instock')
+
+            await client.collection('item').update(item2.id, { copies: 1 })
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
         })
     })
 
@@ -349,15 +407,15 @@ describe('Reservations', () => {
         it('should properly clean up old dangling reservations and their item statuses', async () => {
             let newReservation = await client.collection('reservation').create({
                 customer_iid: 1000,
-                items: [item1.id],
+                items: [item2.id],
                 pickup,
             })
             assert.isNotNull(newReservation)
             assert.isFalse(newReservation.done)
-            assert.equal(newReservation.items[0], item1.id)
+            assert.equal(newReservation.items[0], item2.id)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'reserved')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
 
             let oldReservation = await client.collection('reservation').getFirstListItem('customer_iid = 5000')
             assert.isNotNull(oldReservation)
@@ -376,8 +434,8 @@ describe('Reservations', () => {
             oldReservation = await client.collection('reservation').getOne(oldReservation.id)
             assert.isTrue(oldReservation.done)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'reserved')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
 
             item4 = await client.collection('item').getOne(item4.id)
             assert.equal(item4.status, 'instock')
@@ -388,12 +446,12 @@ describe('Reservations', () => {
         it('should handle reservation cancellation', async () => {
             let reservation1 = await client.collection('reservation').create({
                 customer_iid: 1000,
-                items: [item1.id],
+                items: [item2.id],
                 pickup,
             })
             let reservation2 = await client.collection('reservation').create({
                 customer_iid: 1000,
-                items: [item2.id],
+                items: [item1.id],
                 pickup,
             })
 
@@ -401,8 +459,8 @@ describe('Reservations', () => {
 
             await purgeInbox(imapClient)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'reserved')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
 
             const response = await client.send('/reservation/cancel', {
                 query: {
@@ -415,8 +473,8 @@ describe('Reservations', () => {
             assert.lengthOf(reservations, 2)  // one old one already existed
             assert.equal(reservations[1].id, reservation2.id)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'instock')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'instock')
 
             const messages = await listInbox(imapClient)
             assert.lengthOf(messages, 1)

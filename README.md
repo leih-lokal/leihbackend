@@ -120,5 +120,15 @@ cd tests && bash run_tests.sh --grep "Reservations"
 For the long-term roadmap and future plans for out software setup, please refer to the [wiki](https://wiki.leihlokal-ka.de/software/roadmap).
 
 ## Developer Notes
+### Item availability
+* An item's status is derived from its number of `copies`, its rented copies and its active reservations:
+  * `outofstock` if all copies are rented
+  * `reserved` if all copies that are not rented are reserved
+  * `instock` otherwise
+* Rented copies are the copies requested by rentals that weren't returned yet (`returned_on` not set), minus copies that were already returned (partial return, see `returned_items`).
+* Every active reservation (not `done`) reserves one copy of each of its items. Items can be reserved as long as there are copies that are neither rented nor reserved.
+* Reserved copies can still be rented. Renting an item closes the renting customer's own reservations of it. Reservations of other customers are closed (earliest pickup first) only if their reserved copies are rented out.
+* Other statuses (e.g. `repairing`, `lost`, `deleted`) are set manually and never changed automatically.
+
 ### Deletion
 * Deletions from customers cascade to all entities referencing customers using a foreign key, i.e. deleting a customer will also remove all their rental objects.

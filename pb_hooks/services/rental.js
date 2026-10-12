@@ -10,12 +10,26 @@ function countActiveByItem(itemId, app = $app) {
     }
 }
 
+// Number of copies of each item that a rental currently has out, i.e. requested copies minus copies already returned (partial return, see `returned_items`).
+// Returned rentals (`returned_on` set) have no copies out.
+function getCopiesOut(rental) {
+    const { tryParseJson } = require(`${__hooks}/utils/common.js`)
+
+    if (!rental.getDateTime('returned_on').isZero()) return {}
+
+    const requestedCopies = tryParseJson(rental.getString('requested_copies')) || {}
+    const returnedCopies = tryParseJson(rental.getString('returned_items')) || {}
+
+    return rental.getStringSlice('items').reduce((acc, itemId) => {
+        const numOut = (parseInt(requestedCopies[itemId]) || 1) - (parseInt(returnedCopies[itemId]) || 0) // 1 for legacy support
+        return numOut > 0 ? { ...acc, [itemId]: numOut } : acc
+    }, {})
+}
+
 function countCopiesActiveByItem(itemId, app = $app) {
-    // TODO: implement in sql instead of js
-    const activeRentals = app.findRecordsByFilter('rental', `items ~ '${itemId}' && returned_on = ''`)
-    return activeRentals
-        .map((r) => r.get('requested_copies')[itemId] || 1) // 1 for legacy support
-        .reduce((acc, count) => acc + count, 0)
+    return app
+        .findRecordsByFilter('rental', "items ~ {:itemId} && returned_on = ''", '', 0, 0, { itemId })
+        .reduce((acc, r) => acc + (getCopiesOut(r)[itemId] || 0), 0)
 }
 
 function getDueTodayRentals(app = $app) {
@@ -90,137 +104,71 @@ function exportCsv(app = $app) {
     return CSV.serialize({ fields, records })
 }
 
-function validate(r) {
-    validateStatus(r)
-}
-
-function validateStatus(rental, app = $app) {
-    const customer = app.findRecordById('customer', rental.getString('customer'))
-    const items = app.findRecordsByIds('item', rental.getStringSlice('items')) // explicitly not using record expansion here, because would yield empty result for whatever reason
-    const requestedCopies = JSON.parse(rental.getRaw('requested_copies'))
-
-    for (const item of items) {
-        const itemStatus = item.getString('status')
-        const isInstock = itemStatus === 'instock'
-        const isReserved = itemStatus === 'reserved'
-
-        let reservation = null
-        try {
-            if (isReserved) reservation = app.findFirstRecordByFilter('reservation', 'items ~ {:itemId} && done = false', { itemId: item.id })  // try to find active reservation by item id
-        } catch (e) { }
-
-        // Allow rental if item is instock or reserved. Block other statuses (repairing, deleted, etc.).
-        if (!isInstock && !isReserved) {
-            throw new BadRequestError(`Item ${item.getInt('iid')} is not available for rental (status: ${itemStatus}).`)
-        }
-
-        if (isReserved && reservation) {
-            const isSameCustomer = reservation.getString('customer_email').toLowerCase() === customer.getString('email').toLowerCase()
-            const isNewCustomerReservation = reservation.getBool('is_new_customer')
-            if (!isSameCustomer && !isNewCustomerReservation) {
-                app.logger().warn(`Renting reserved item ${item.getInt('iid')} to ${customer.getString('email')} instead of reserver ${reservation.getString('customer_email')}`)
-            }
-        }
-
-        const numTotal = item.getInt('copies')
-        const numAvailable = numTotal - countCopiesActiveByItem(item)
-        const numRequested = requestedCopies && item.id in requestedCopies ? requestedCopies[item.id] : 1 // backwards compatibility
-        if (numRequested > numAvailable) throw new BadRequestError(`Item ${item.getInt('iid')} is not available for rental.`)
-    }
-}
-
 // update item statuses
-// meant to be called right before rental is saved
+// meant to be called right after rental is saved (or deleted)
 function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
     // TODO: handle (or forbid) the case where a rental is returned and it's item list is updated at the same time (currently unhandled)
-    // TODO: handle "partially" returned rentals (see `returned_items` field (https://github.com/leih-lokal/leihbackend/issues/4)
 
-    const { tryParseJson } = require(`${__hooks}/utils/common.js`)
     const itemService = require(`${__hooks}/services/item.js`)
-    const reservationService = require(`${__hooks}/services/reservation.js`)
 
-    if (oldRental && !oldRental.getDateTime('returned_on').isZero()) {
-        // don't retroactively update item statuses of already returned rentals
-        return
+    const copiesOutNew = isDelete ? {} : getCopiesOut(rental)
+    const copiesOutOld = oldRental ? getCopiesOut(oldRental) : {}
+
+    // only touch items whose number of rented copies actually changed, e.g. don't retroactively update items of already returned rentals
+    const itemIds = [...new Set([...Object.keys(copiesOutNew), ...Object.keys(copiesOutOld)])]
+        .filter((itemId) => copiesOutNew[itemId] !== copiesOutOld[itemId])
+
+    app.findRecordsByIds('item', itemIds).forEach((item) => {
+        const numAdded = (copiesOutNew[item.id] || 0) - (copiesOutOld[item.id] || 0)
+        if (numAdded > 0) {
+            validateAvailable(item, numAdded, app)
+            closeReservations(item, rental, numAdded, app)
+        }
+        itemService.refreshStatus(item, app)
+    })
+}
+
+// meant to be called right after rental is saved, i.e. the rental's copies are already counted
+function validateAvailable(item, numAdded, app = $app) {
+    const itemStatus = item.getString('status')
+
+    // Reserved items can be rented, too, even to someone other than the reserver. Reservations will be closed accordingly (see below).
+    if (!['instock', 'reserved'].includes(itemStatus)) {
+        throw new BadRequestError(`Item ${item.getInt('iid')} is not available for rental (status: ${itemStatus}).`)
     }
 
-    const returnDate = rental.getDateTime('returned_on')
-    const isReturn = !returnDate.isZero() && oldRental && !returnDate.equal(oldRental.getDateTime('returned_on')) && returnDate.before(new DateTime())
-    const returnItems = isReturn || isDelete
+    const numTotal = item.getInt('copies')
+    const numRented = countCopiesActiveByItem(item.id, app)
+    if (numRented > numTotal) {
+        throw new BadRequestError(`Item ${item.getInt('iid')} is not available for rental (${numTotal - numRented + numAdded} of ${numTotal} copies available).`)
+    }
+}
 
-    const requestedCopiesNew = JSON.parse(rental.getRaw('requested_copies')) || {}
-    const requestedCopiesOld = oldRental ? JSON.parse(oldRental.getRaw('requested_copies')) || {} : {}
+// Close active reservations of an item that is being rented out:
+// - the renting customer's own reservations, because they are being picked up
+// - others (earliest pickup first) if their reserved copies are rented out now, i.e. if there are more active reservations than copies left
+function closeReservations(item, rental, numAdded, app = $app) {
+    const reservations = app.findRecordsByFilter('reservation', 'items ~ {:itemId} && done = false', 'pickup', 0, 0, { itemId: item.id })
+    if (!reservations.length) return
 
-    const itemCountsNew = rental.getStringSlice('items').reduce((acc, id) => ({ ...acc, [id]: requestedCopiesNew[id] || 1 }), {})
-    const itemCountsOld = (oldRental?.getStringSlice('items') || []).reduce((acc, id) => ({ ...acc, [id]: requestedCopiesOld[id] || 1 }), {})
+    const customer = app.findRecordById('customer', rental.getString('customer'))
+    const customerEmail = customer.getString('email').toLowerCase()
+    const isOwn = (r) => (customerEmail && r.getString('customer_email').toLowerCase() === customerEmail) || (r.getInt('customer_iid') > 0 && r.getInt('customer_iid') === customer.getInt('iid'))
 
-    const itemCountsDiff = {}
-    Object.entries(itemCountsNew).forEach(([itemId, count]) => {
-        itemCountsDiff[itemId] = !returnItems ? count : -count
+    const ownReservations = reservations.filter(isOwn).slice(0, numAdded)
+    const otherReservations = reservations.filter((r) => !ownReservations.some((o) => o.id === r.id))
+    const numFree = item.getInt('copies') - countCopiesActiveByItem(item.id, app) - otherReservations.length
+
+    ownReservations.forEach((r) => {
+        r.set('done', true)
+        app.save(r)
+        app.logger().info(`Closed reservation ${r.id} for item ${item.getInt('iid')} upon rental to the reserver ${customerEmail}.`)
     })
-    Object.entries(itemCountsOld).forEach(([itemId, count]) => {
-        if (!(itemId in itemCountsDiff)) itemCountsDiff[itemId] = 0
-        itemCountsDiff[itemId] -= count
-    })
 
-    const itemsAll = app.findRecordsByIds('item', Object.keys(itemCountsDiff)) // explicitly not using record expansion here, because would yield empty result for whatever reason
-
-    itemsAll.forEach((item) => {
-        const itemId = item.id
-        const itemStatus = item.getString('status')
-        const isUpdate = item.id in itemCountsOld // whether the rental is updated (not created new) and this item was included before
-
-        const numTotal = item.getInt('copies')
-        const numRequested = itemCountsDiff[itemId]
-
-        // we allow 'reserved' here, because validate() (see above) already features a status check to verify that the to-be-rented item is either instock or reserved by the target customer (or is a new customer reservation)
-        if (numRequested > 0 && !['instock', 'reserved'].includes(itemStatus)) throw new BadRequestError(`Can't rent item ${itemId} (${item.getInt('iid')}), because not in stock`)
-
-        // Auto-close matching reservations when renting a reserved item.
-        if (numRequested > 0 && itemStatus === 'reserved') {
-            try {
-                const activeReservations = app.findRecordsByFilter('reservation', `items ~ '${itemId}' && done = false`)
-                activeReservations.forEach((r) => {
-                    r.set('done', true)
-                    app.save(r)
-                    app.logger().info(`Auto-closed reservation ${r.id} for item ${item.getInt('iid')} upon rental`)
-                })
-            } catch (e) {
-                app.logger().warn(`Failed to auto-close reservations for item ${item.getInt('iid')}: ${e}`)
-            }
-        }
-
-        const numRented = app
-            .findRecordsByFilter('rental', `items ~ '${itemId}' && returned_on = ''`)
-            .filter((r) => isUpdate || r.id !== rental.id) // exclude self for new rentals (record already exists at this point)
-            .map((r) => tryParseJson(r.getRaw('requested_copies')))
-            .map((rc) => (rc && !isNaN(rc[itemId])) ? rc[itemId] : 1) // 1 for legacy support
-            .reduce((acc, count) => acc + count, 0)
-        // For simplicity, we currently don't consider the number of copies for reservations.
-        // If an item is reserved, we implicitly assume all copies of it to be served, otherwise things get confusing
-        // (e.g. customer reserves an item, but status on the website is still shown as available, etc.).
-        // Accordingly, numReservations should actually never be greater than 1.
-        const numReservations = reservationService.countActiveByItem(itemId, app)
-        // We're not subtracting reservations here, because when creating a new rental to fulfill an existing reservation, we need the item to be considered available.
-        // We assume that rentals are only created by responsible and attentative employees who check the reservations table first.
-        const numAvailable = numTotal - numRented
-        const numRemaining = numAvailable - numRequested
-
-        if (numRemaining == 0) {
-            app.logger().info(`Setting item ${item.id} to outofstock (${numRented} copies rented, ${numAvailable} available, ${numReservations} active reservations)`)
-            itemService.setStatus(item, 'outofstock', app)
-        } else if (numRemaining > 0) {
-            if (!['outofstock', 'instock', 'reserved'].includes(itemStatus)) return // don't make repairing, deleted, etc. available again when old rental was deleted or sth.
-
-            // If a rental is returned (or deleted from the database) and we do have an active reservation, reset the item's availability status to "reserved" to avoid inconsistencies.
-            // To make it "instock" again, clear the reservation entry or mark it as done.
-            const status = numReservations > 0 ? 'reserved' : 'instock'
-
-            app.logger().info(`Setting item ${item.id} to ${status} (${numRented} copies rented, ${numAvailable} available, ${numReservations} active reservations)`)
-            itemService.setStatus(item, status, app)
-        } else {
-            throw new InternalServerError(`Can't set status of item ${item.id}, because invalid state`)
-        }
+    otherReservations.slice(0, Math.max(0, -numFree)).forEach((r) => {
+        r.set('done', true)
+        app.save(r)
+        app.logger().warn(`Closed reservation ${r.id} for item ${item.getInt('iid')}, because the reserved copy was rented to ${customerEmail} instead of reserver ${r.getString('customer_email')}.`)
     })
 }
 
@@ -262,7 +210,6 @@ function sendReminderMail(r) {
 }
 
 module.exports = {
-    validate,
     countActiveByItem,
     countCopiesActiveByItem,
     getDueTodayRentals,

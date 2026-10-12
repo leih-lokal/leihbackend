@@ -11,6 +11,23 @@
 
 const { handleGetItemsCsv } = require(`${__hooks}/routes/item`)
 
+// Record hooks
+// ----- //
+
+onRecordUpdateExecute((e) => {
+    const { IMPORT_MODE } = require(`${__hooks}/constants.js`)
+    const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
+    const { refreshStatus } = require(`${__hooks}/services/item.js`)
+
+    wrapTransactional(e, (e) => {
+        const oldRecord = e.app.findRecordById('item', e.record.id)
+        e.next()
+
+        // availability depends on the number of copies
+        if (!IMPORT_MODE && e.record.getInt('copies') !== oldRecord.getInt('copies')) refreshStatus(e.record, e.app)
+    })
+}, 'item')
+
 // Routes
 // ----- //
 routerAdd('get', '/api/item/csv', handleGetItemsCsv, $apis.requireSuperuserAuth())
