@@ -228,7 +228,7 @@ function updateItems(reservation, oldReservation = null, isDelete = false, app =
 // E-Mail Sending
 
 function sendConfirmationMail(r) {
-    const { fmtDate } = require(`${__hooks}/utils/common.js`)
+    const { fmtDate, fmtCurrency } = require(`${__hooks}/utils/common.js`)
     const { DRY_MODE, IMPORT_MODE } = require(`${__hooks}/constants.js`)
 
     // Skip email if on_premises is true
@@ -242,12 +242,8 @@ function sendConfirmationMail(r) {
     const pickupDateStr = fmtDate(r.getDateTime('pickup'))
     const cancelLink = `${$app.settings().meta.appURL}/reservation/cancel?token=${r.getString('cancel_token')}`
 
-    const items = r.expandedAll('items').map((i) => ({
-        iid: i.getInt('iid'),
-        name: i.getString('name'),
-        deposit: i.getFloat('deposit'),
-    }))
-    const depositTotal = items.reduce((sum, i) => sum + i.deposit, 0)
+    const items = r.expandedAll('items')
+    const depositTotal = items.reduce((sum, i) => sum + i.getFloat('deposit'), 0)
 
     const html = $template.loadFiles(`${__hooks}/views/layout.html`, `${__hooks}/views/mail/reservation_confirmation.html`).render({
         pickup: pickupDateStr,
@@ -256,8 +252,13 @@ function sendConfirmationMail(r) {
         customer_email: customerEmail,
         customer_phone: r.getString('customer_phone'),
         comments: r.getString('comments'),
-        items: items,
-        deposit_total: depositTotal,
+        // deposits are passed preformatted, empty if zero
+        items: items.map((i) => ({
+            iid: i.getInt('iid'),
+            name: i.getString('name'),
+            deposit: i.getFloat('deposit') > 0 ? fmtCurrency(i.getFloat('deposit')) : '',
+        })),
+        deposit_total: depositTotal > 0 ? fmtCurrency(depositTotal) : '',
         cancel_link: cancelLink,
         otp: r.getString('otp'),
     })

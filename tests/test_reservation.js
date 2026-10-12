@@ -142,6 +142,37 @@ describe('Reservations', () => {
             assert.equal(item1.status, 'instock')
         })
 
+        it('should list deposits in the confirmation mail', async () => {
+            await anonymousClient.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item1.id, item2.id],  // deposit 10 and 0
+                pickup,
+            })
+
+            const messages = await listInbox(imapClient)
+            assert.lengthOf(messages, 1)
+            assert.include(messages[0].body, '(Pfand: 10,00 €)')
+            assert.include(messages[0].body, 'Gesamtpfand: 10,00 €')
+            assert.notInclude(messages[0].body, '(Pfand: 0,00 €)')  // no deposit shown for item2
+            assert.notInclude(messages[0].body, '%!')  // no go template formatting errors
+        })
+
+        it('should list non-integer deposits in the confirmation mail', async () => {
+            await client.collection('item').update(item2.id, { deposit: 12.5 })
+
+            await anonymousClient.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item1.id, item2.id],
+                pickup,
+            })
+
+            const messages = await listInbox(imapClient)
+            assert.lengthOf(messages, 1)
+            assert.include(messages[0].body, '(Pfand: 10,00 €)')
+            assert.include(messages[0].body, '(Pfand: 12,50 €)')
+            assert.include(messages[0].body, 'Gesamtpfand: 22,50 €')
+        })
+
         it('should autofill customer info', async () => {
             let reservation = await anonymousClient.collection('reservation').create({
                 customer_email: customer1.email,
