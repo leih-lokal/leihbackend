@@ -44,4 +44,5 @@ sleep 5
 
 echo "Starting tests ..."
 cd $SCRIPT_DIR
-npm test
+export PB_DATA_DIR=$DATA_DIR  # tests reset the database to the fixtures before each test case (see hooks.js)
+npm test -- "$@"  # pass mocha args, e.g. bash run_tests.sh --grep "Reservations"

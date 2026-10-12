@@ -97,9 +97,7 @@ No public access.
 * Reservation cancellation endpoint `/reservation/cancel` is public (but requires the cancellation token, obviously)
 
 ## Tests
-> [!IMPORTANT]
-> Test cases are currently implemented in a way such that depend on one another. That is, if one test fails, subsequent tests are likely to fail as well due to inconsistent state, because tests currently are responsible for properly cleaning up their own data. 
-> We should change tests to work **indepdendently**.
+Test cases run independently of each other: before every test case, all data is reset to the fixtures in [`tests/seed.sql`](tests/seed.sql) (see [`tests/hooks.js`](tests/hooks.js)). Tests therefore don't need to clean up after themselves, and a failing test doesn't affect subsequent ones.
 
 ### Requirements
 * NodeJS
@@ -113,6 +111,9 @@ cd tests && npm install --dev
 ### Run
 ```bash
 cd tests && bash run_tests.sh
+
+# run selected tests only (arguments are passed to mocha)
+cd tests && bash run_tests.sh --grep "Reservations"
 ```
 
 ## Roadmap

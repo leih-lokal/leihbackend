@@ -60,7 +60,7 @@ describe('Misc', () => {
                 items: [item1.id],
                 pickup: now,
             })
-            assert.isNotNull(rental)
+            assert.isNotNull(reservation)
 
             await purgeInbox(imapClient)
 
@@ -83,9 +83,6 @@ describe('Misc', () => {
                 messages.map(m => m.recipients[0]).toSorted(),
                 [customer1.email, customer2.email].toSorted()
             )
-
-            await client.collection('rental').delete(rental.id)
-            await client.collection('reservation').delete(reservation.id)
         })
     })
 
