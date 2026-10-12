@@ -1,4 +1,4 @@
-const { OPENING_HOURS } = require(`${__hooks}/constants.js`)
+const { OPENING_HOURS, IMAGE_COMPRESSION } = require(`${__hooks}/constants.js`)
 
 /**
  * Read a JSON field from the settings record.
@@ -36,6 +36,31 @@ function getOpeningHours(app = $app) {
     return hours.length ? hours : OPENING_HOURS
 }
 
+/**
+ * Read image compression settings from the settings collection.
+ * Stored values are merged key by key over the defaults (IMAGE_COMPRESSION from constants.js), the same way llka-verwaltung does it:
+ * values are kept only if they have the default's type, unknown keys are dropped.
+ *
+ * Note: images are compressed client-side (llka-verwaltung) only, see https://github.com/leih-lokal/leihbackend/issues/24.
+ */
+function getImageCompression(app = $app) {
+    const IMAGE_OUTPUT_FORMATS = ['keep', 'webp', 'jpeg']
+
+    const settings = { ...IMAGE_COMPRESSION }
+
+    const value = getSettingsValue('image_compression', app)
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return settings
+
+    Object.keys(settings).forEach((key) => {
+        const v = value[key]
+        if (v !== null && typeof v === typeof settings[key] && (typeof v !== 'number' || Number.isFinite(v))) settings[key] = v
+    })
+    if (!IMAGE_OUTPUT_FORMATS.includes(settings.output_format)) settings.output_format = IMAGE_COMPRESSION.output_format
+
+    return settings
+}
+
 module.exports = {
     getOpeningHours,
+    getImageCompression,
 }

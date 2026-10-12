@@ -13,6 +13,14 @@ const DEFAULT_OPENING_HOURS = [
     ['sat', '10:00', '14:00'],
 ]
 
+const DEFAULT_IMAGE_COMPRESSION = {
+    enabled: true,
+    max_dimension_px: 1600,
+    quality: 82,
+    output_format: 'keep',
+    skip_if_smaller_than_kb: 200,
+}
+
 // The settings collection is created by llka-verwaltung on demand, i.e. it doesn't necessarily exist
 async function dropSettingsCollection(client) {
     try {
@@ -32,6 +40,7 @@ async function createSettingsCollection(client) {
         fields: [
             { name: 'app_name', type: 'text' },
             { name: 'opening_hours', type: 'json' },
+            { name: 'image_compression', type: 'json' },
         ],
     })
 }
@@ -54,6 +63,11 @@ describe('Settings', () => {
             const response = await anonymousClient.send('/api/opening-hours')
             assert.deepEqual(response, { opening_hours: DEFAULT_OPENING_HOURS })
         })
+
+        it('should return default image compression settings', async () => {
+            const response = await anonymousClient.send('/api/image-compression')
+            assert.deepEqual(response, { image_compression: DEFAULT_IMAGE_COMPRESSION })
+        })
     })
 
     describe('With settings collection', () => {
@@ -67,6 +81,7 @@ describe('Settings', () => {
 
         it('should return defaults if there is no settings record', async () => {
             assert.deepEqual(await anonymousClient.send('/api/opening-hours'), { opening_hours: DEFAULT_OPENING_HOURS })
+            assert.deepEqual(await anonymousClient.send('/api/image-compression'), { image_compression: DEFAULT_IMAGE_COMPRESSION })
         })
 
         it('should return configured opening hours', async () => {
@@ -91,6 +106,40 @@ describe('Settings', () => {
 
             await assert.isRejected(reserve(nextWeekday(5, 17)))  // friday, open by default
             await reserve(nextWeekday(0, 11))
+        })
+
+        it('should merge configured image compression settings over defaults', async () => {
+            await client.collection('settings').create({
+                image_compression: {
+                    quality: 70,
+                    output_format: 'webp',
+                    max_dimension_px: 'big',  // invalid type
+                    foo: 'bar',  // unknown
+                },
+            })
+
+            const response = await anonymousClient.send('/api/image-compression')
+            assert.deepEqual(response, {
+                image_compression: {
+                    ...DEFAULT_IMAGE_COMPRESSION,
+                    quality: 70,
+                    output_format: 'webp',
+                },
+            })
+        })
+
+        it('should fall back to default output format if invalid', async () => {
+            await client.collection('settings').create({
+                image_compression: { enabled: false, output_format: 'gif' },
+            })
+
+            const response = await anonymousClient.send('/api/image-compression')
+            assert.deepEqual(response, {
+                image_compression: {
+                    ...DEFAULT_IMAGE_COMPRESSION,
+                    enabled: false,
+                },
+            })
         })
     })
 })

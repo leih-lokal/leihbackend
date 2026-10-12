@@ -60,6 +60,11 @@ If no `settings` record exists (e.g. fresh installation without llka-verwaltung)
 
 The configured (or default) opening hours are available via a public API endpoint (see below).
 
+### Image compression
+Settings for compressing uploaded images (e.g. item images) are stored in the `settings` collection as a JSON field (`image_compression`): `enabled`, `max_dimension_px` (longest edge), `quality` (1 - 100), `output_format` (`keep`, `webp` or `jpeg`) and `skip_if_smaller_than_kb`. They can be configured through the llka-verwaltung settings UI.
+
+Images are compressed client-side by llka-verwaltung only. The backend doesn't recompress uploads (PocketBase's JS runtime can't process images), so clients that ignore these settings can still upload images up to the file field's maximum size. Other clients can read the configured (or default) settings via a public API endpoint (see below) to compress images before uploading, too.
+
 ## API Endpoints
 See [Web APIs reference](https://pocketbase.io/docs/api-records/) for documentation on what endpoints are available and how to use them (especially with regard to filtering, searching, etc.).
 
@@ -71,6 +76,7 @@ See [Web APIs reference](https://pocketbase.io/docs/api-records/) for documentat
 * `GET` `/api/rental/csv` (superusers only)
 * `GET` `/api/reservation/csv` (superusers only)
 * `GET` `/api/opening-hours` (public) — returns configured opening hours (or defaults)
+* `GET` `/api/image-compression` (public) — returns configured image compression settings (or defaults)
 * `POST` `/api/misc/emergency_closing` (superusers only)
 
 ## Authentication
