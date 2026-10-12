@@ -6,10 +6,10 @@ function handleGetDefaults(e) {
 
 // Render a mail with example data, using the given templates, else the stored custom ones, else the defaults
 function handlePostPreview(e) {
-    const { MAILS, LAYOUT_KEY, render, getCustomTemplate, validateTemplate } = require(`${__hooks}/services/mail.js`)
+    const { MAILS, LAYOUT_KEY, isMail, render, getCustomTemplate, validateTemplate } = require(`${__hooks}/services/mail.js`)
 
     const { key, subject, body, layout } = e.requestInfo().body
-    if (!(key in MAILS)) throw new BadRequestError(`Unknown mail ${key}`)
+    if (!isMail(key)) throw new BadRequestError(`Unknown mail ${key}`)
 
     validateTemplate(key, { subject, body })
     if (layout) validateTemplate(LAYOUT_KEY, { body: layout })

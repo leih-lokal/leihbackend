@@ -50,19 +50,28 @@ const MAILS = {
 
 const LAYOUT_KEY = 'layout'
 
+// Rendered in place of the body when rendering the layout. Plain text, because html/template would strip an html comment.
+const BODY_PLACEHOLDER = 'MAIL_BODY_PLACEHOLDER'
+
+function isMail(key) {
+    return Object.keys(MAILS).includes(key)
+}
+
 function readView(path) {
     return toString($os.readFile(`${__hooks}/views/${path}`))
 }
 
-// Default templates, with bodies stripped of their {{define "body"}} wrapper, i.e. in the same form as custom templates
-function getDefaults() {
-    const stripDefine = (src) => src.replace(/^\s*{{\s*define\s+"body"\s*}}/, '').replace(/{{\s*end\s*}}\s*$/, '')
+// Default body, stripped of its {{define "body"}} wrapper, i.e. in the same form as custom templates
+function getDefaultBody(key) {
+    return readView(`mail/${key}.html`).replace(/^\s*{{\s*define\s+"body"\s*}}/, '').replace(/{{\s*end\s*}}\s*$/, '')
+}
 
+function getDefaults() {
     return {
         layout: readView('layout.html'),
         mails: Object.fromEntries(Object.entries(MAILS).map(([key, mail]) => [key, {
             subject: mail.subject,
-            body: stripDefine(readView(`mail/${key}.html`)),
+            body: getDefaultBody(key),
             example: mail.example,
         }])),
     }
@@ -88,29 +97,35 @@ function unescapeHtml(str) {
         .replace(/&amp;/g, '&')
 }
 
-// Render a mail from the given templates, falling back to the default for every template not given
+// Render the layout around the given, already rendered body
+function renderLayout(layout, data, bodyHtml) {
+    const html = $template.loadString(`${layout || readView('layout.html')}{{define "body"}}${BODY_PLACEHOLDER}{{end}}`).render(data)
+    if (!html.includes(BODY_PLACEHOLDER)) throw new Error('layout must include the mail body, i.e. {{template "body" .}}')
+    return html.split(BODY_PLACEHOLDER).join(bodyHtml)
+}
+
+// Render a mail from the given templates, falling back to the default for every template not given.
+// The body is rendered on its own and inserted into the layout afterwards: $template caches every parsed template text for good,
+// so this way only the (small) body is parsed and cached again whenever it changes, e.g. in previews, not the layout along with it.
+// It also makes line numbers in errors refer to the body.
 function render(key, data, { layout, subject, body } = {}) {
-    const layoutSrc = layout || readView('layout.html')
-    const bodySrc = body ? `{{define "body"}}${body}{{end}}` : readView(`mail/${key}.html`)
+    const bodyHtml = $template.loadString(body || getDefaultBody(key)).render(data)
 
     return {
         subject: unescapeHtml($template.loadString(subject || MAILS[key].subject).render(data)).replace(/[\r\n]+/g, ' ').trim(), // single line, data might be user input
-        html: $template.loadString(layoutSrc + bodySrc).render(data),
+        html: renderLayout(layout, data, bodyHtml),
     }
 }
 
 // Throws a BadRequestError if the given (custom) template can't be rendered
 function validateTemplate(key, { subject, body }) {
-    if (key !== LAYOUT_KEY && !(key in MAILS)) return // invalid key, rejected by field validation
-
-    const marker = 'MAIL_BODY_PLACEHOLDER' // not an html comment, html/template would strip it
+    if (key !== LAYOUT_KEY && !isMail(key)) return // invalid key, rejected by field validation
 
     try {
         if (key === LAYOUT_KEY) {
-            const html = $template.loadString(`${body || readView('layout.html')}{{define "body"}}${marker}{{end}}`).render(MAILS.customer_welcome.example)
-            if (!html.includes(marker)) throw new Error('layout must include the mail body, i.e. {{template "body" .}}')
+            // with the data of every mail, in case the layout includes the body conditionally
+            Object.values(MAILS).forEach((mail) => renderLayout(body, mail.example, ''))
         } else {
-            if (body) $template.loadString(body).render(MAILS[key].example) // on its own first, so that line numbers in errors refer to the body
             render(key, MAILS[key].example, { subject, body })
         }
     } catch (e) {
@@ -153,6 +168,7 @@ function sendMail(key, recipient, data, app = $app) {
 module.exports = {
     MAILS,
     LAYOUT_KEY,
+    isMail,
     getDefaults,
     getCustomTemplate,
     render,

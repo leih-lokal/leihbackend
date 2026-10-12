@@ -152,6 +152,10 @@ describe('Mail templates', () => {
             await assert.isRejected(client.collection('mail_template').create({ key: 'layout', body: '<html><body>No body</body></html>' }))
         })
 
+        it('should reject layouts that include the body only for some mails', async () => {
+            await assert.isRejected(client.collection('mail_template').create({ key: 'layout', body: '<html>{{ if .firstname }}{{template "body" .}}{{ end }}</html>' }))
+        })
+
         it('should reject invalid updates', async () => {
             const template = await client.collection('mail_template').create({ key: 'customer_welcome', body: '<p>Hallo</p>' })
             await assert.isRejected(client.collection('mail_template').update(template.id, { body: '{{ end }}' }))
@@ -204,6 +208,10 @@ describe('Mail templates', () => {
             await assert.isRejected(client.send('/api/mail-templates/preview', {
                 method: 'post',
                 body: { key: 'foo' },
+            }))
+            await assert.isRejected(client.send('/api/mail-templates/preview', {
+                method: 'post',
+                body: { key: 'constructor', body: '<p>Hallo</p>' },
             }))
         })
     })
