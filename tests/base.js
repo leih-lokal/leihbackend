@@ -28,6 +28,25 @@ Date.prototype.addYears = function(y) {
   return this;
 }
 
+// Next occurrence of the given weekday (0 = sunday) at the given local time, at least two days from now
+function nextWeekday(weekday, hours = 17) {
+    const date = new Date()
+    date.setHours(hours, 0, 0, 0)
+    date.setDate(date.getDate() + 2)
+    while (date.getDay() !== weekday) date.setDate(date.getDate() + 1)
+    return date
+}
+
+// Valid pickup date for reservations (friday, within default opening hours)
+function nextPickup() {
+    return nextWeekday(5)
+}
+
+// Same format as dates in e-mails (DD.MM.YYYY)
+function fmtDate(date) {
+    return `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`
+}
+
 async function fileExists(file) {
     try {
         await access(file, fs.constants.F_OK)
@@ -123,4 +142,7 @@ export {
     initImap,
     purgeInbox,
     listInbox,
+    nextWeekday,
+    nextPickup,
+    fmtDate,
 }

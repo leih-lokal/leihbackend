@@ -12,6 +12,12 @@ function extractAddresses(headerArray) {
     })
 }
 
+// Raw (MIME) message body with quoted-printable soft line breaks and escapes decoded, good enough to search for rendered text
+function decodeQuotedPrintable(str) {
+    const latin1 = str.replace(/=\r?\n/g, '').replace(/=([0-9A-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    return Buffer.from(latin1, 'latin1').toString('utf8')
+}
+
 function connectImap(imapConfig) {
     return new Promise((resolve, reject) => {
         const imap = new Imap(imapConfig)
@@ -40,17 +46,18 @@ function fetchMessages(imap, mailbox) {
             }
 
             const f = imap.fetch('1:*', {
-                bodies: ['HEADER.FIELDS (FROM SUBJECT TO CC)'],
+                bodies: ['HEADER.FIELDS (FROM SUBJECT TO CC)', 'TEXT'],
                 attributes: ['UID']
             })
 
             const messages = []
 
             f.on('message', (msg, seqno) => {
+                const message = { uid: null, seqno }
+                messages.push(message)
 
                 msg.on('attributes', (attrs) => {
-                    // apparently called after 'body' event
-                    messages.filter(m => m.seqno === seqno).forEach(m => m.uid = attrs.uid)
+                    message.uid = attrs.uid
                 })
 
                 msg.on('body', (stream, info) => {
@@ -58,24 +65,21 @@ function fetchMessages(imap, mailbox) {
                     stream.on('data', (chunk) => { buffer += chunk.toString('utf8') })
 
                     stream.once('end', () => {
+                        if (info.which === 'TEXT') {
+                            message.body = decodeQuotedPrintable(buffer)
+                            return
+                        }
+
                         const headers = Imap.parseHeader(buffer)
 
                         const senderHeader = headers.from ? headers.from[0] : 'Unknown'
-                        const sender = extractAddresses([senderHeader])[0] || 'Unknown'
+                        message.sender = extractAddresses([senderHeader])[0] || 'Unknown'
 
                         const toAddresses = extractAddresses(headers.to)
                         const ccAddresses = extractAddresses(headers.cc)
-                        const recipients = [...toAddresses, ...ccAddresses]
+                        message.recipients = [...toAddresses, ...ccAddresses]
 
-                        const subject = headers.subject ? headers.subject[0] : 'No Subject'
-
-                        messages.push({
-                            uid: null,
-                            seqno: info.seqno,
-                            sender: sender,
-                            recipients: recipients,
-                            subject: subject
-                        })
+                        message.subject = headers.subject ? headers.subject[0] : 'No Subject'
                     })
                 })
             })

@@ -15,28 +15,20 @@ function futureDate(days) {
 describe('Bookings', () => {
     let client
     let anonymousClient
-    let item1 // protected item (set up in before())
+    let item1 // protected item (set up in beforeEach())
     let item2 // non-protected item
 
     before(async () => {
         client = await getClient()
         anonymousClient = await getAnonymousClient()
+    })
 
+    beforeEach(async () => {
         item1 = await client.collection('item').getFirstListItem('iid=1000') // apple pie (4 copies)
         item2 = await client.collection('item').getFirstListItem('iid=1001') // goat cheese (1 copy)
 
         // make item1 protected for booking tests
         await client.collection('item').update(item1.id, { is_protected: true })
-    })
-
-    after(async () => {
-        // clean up all bookings
-        const bookings = await client.collection('booking').getFullList()
-        for (const b of bookings) {
-            await client.collection('booking').delete(b.id)
-        }
-        // restore item1
-        await client.collection('item').update(item1.id, { is_protected: false })
     })
 
     describe('General', () => {
@@ -56,13 +48,6 @@ describe('Bookings', () => {
     })
 
     describe('Creation', () => {
-        afterEach(async () => {
-            const bookings = await client.collection('booking').getFullList()
-            for (const b of bookings) {
-                await client.collection('booking').delete(b.id)
-            }
-        })
-
         it('should create a booking with minimal fields', async () => {
             const booking = await client.collection('booking').create({
                 item: item1.id,
@@ -107,13 +92,6 @@ describe('Bookings', () => {
     })
 
     describe('Date validation', () => {
-        afterEach(async () => {
-            const bookings = await client.collection('booking').getFullList()
-            for (const b of bookings) {
-                await client.collection('booking').delete(b.id)
-            }
-        })
-
         it('should reject end_date before start_date', async () => {
             await assert.isRejected(client.collection('booking').create({
                 item: item1.id,
@@ -141,13 +119,6 @@ describe('Bookings', () => {
     })
 
     describe('Overlap prevention', () => {
-        afterEach(async () => {
-            const bookings = await client.collection('booking').getFullList()
-            for (const b of bookings) {
-                await client.collection('booking').delete(b.id)
-            }
-        })
-
         it('should reject overlapping booking for single-copy item', async () => {
             // temporarily set item1 to 1 copy
             await client.collection('item').update(item1.id, { copies: 1 })
@@ -177,9 +148,6 @@ describe('Bookings', () => {
                 end_date: futureDate(25),
                 status: 'reserved',
             }))
-
-            // restore copies
-            await client.collection('item').update(item1.id, { copies: 4 })
         })
 
         it('should allow non-overlapping bookings', async () => {
@@ -212,8 +180,6 @@ describe('Bookings', () => {
                 status: 'reserved',
             })
             assert.isNotNull(after)
-
-            await client.collection('item').update(item1.id, { copies: 4 })
         })
 
         it('should respect item.copies for multi-copy items', async () => {
@@ -243,8 +209,6 @@ describe('Bookings', () => {
                 end_date: futureDate(16),
                 status: 'reserved',
             }))
-
-            await client.collection('item').update(item1.id, { copies: 4 })
         })
 
         it('should not count returned bookings as conflicts', async () => {
@@ -270,19 +234,10 @@ describe('Bookings', () => {
                 status: 'reserved',
             })
             assert.isNotNull(newBooking)
-
-            await client.collection('item').update(item1.id, { copies: 4 })
         })
     })
 
     describe('Status transitions', () => {
-        afterEach(async () => {
-            const bookings = await client.collection('booking').getFullList()
-            for (const b of bookings) {
-                await client.collection('booking').delete(b.id)
-            }
-        })
-
         it('should allow valid transitions through full lifecycle', async () => {
             // reserved -> active -> returned
             const b1 = await client.collection('booking').create({

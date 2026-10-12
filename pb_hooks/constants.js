@@ -16,6 +16,15 @@ const OPENING_HOURS = [
     ['sat', '10:00', '14:00'],
 ]
 
+// defaults for image uploads, same as in llka-verwaltung, where images are actually compressed (client-side)
+const IMAGE_COMPRESSION = {
+    enabled: true,
+    max_dimension_px: 1600, // longest edge
+    quality: 82, // 1 - 100, for jpeg / webp output
+    output_format: 'keep', // keep, webp or jpeg
+    skip_if_smaller_than_kb: 200,
+}
+
 const INACTIVE_MONTHS = $os.getenv('LL_INACTIVE_MONTHS')
     ? parseInt($os.getenv('LL_INACTIVE_MONTHS'))
     : 24
@@ -31,6 +40,7 @@ const LOG_LEVEL = parseInt($os.getenv('LOG_LEVEL') || '4')  // warning
 
 module.exports = {
     OPENING_HOURS,
+    IMAGE_COMPRESSION,
     WEEKDAYS,
     INACTIVE_MONTHS,
     DELETION_GRACE_PERIOD_DAYS,

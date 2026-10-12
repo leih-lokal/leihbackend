@@ -1,6 +1,6 @@
 import * as chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
-import { getAnonymousClient, getClient, initImap, listInbox, getFakeMailAccount, configureSmtp, USERNAME, purgeInbox } from './base.js'
+import { getAnonymousClient, getClient, initImap, listInbox, getFakeMailAccount, configureSmtp, USERNAME, purgeInbox, nextPickup, nextWeekday, fmtDate } from './base.js'
 import { assert } from 'chai'
 import { describe, it, before } from 'mocha'
 import { setTimeout } from 'timers/promises'
@@ -14,6 +14,8 @@ describe('Reservations', () => {
 
     let item1, item2, item3, item4
     let customer1, customer2
+
+    const pickup = nextPickup()
 
     before(async () => {
         client = await getClient()
@@ -53,8 +55,8 @@ describe('Reservations', () => {
         it('should create a reservation for an existing customer by iid', async () => {
             let reservation = await anonymousClient.collection('reservation').create({
                 customer_iid: 1000,
-                items: [item1.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                items: [item2.id],
+                pickup,
             })
             assert.isNotNull(reservation)
             assert.doesNotHaveAnyKeys(reservation, ['customer_iid',
@@ -80,26 +82,26 @@ describe('Reservations', () => {
             assert.equal(reservation.customer_iid, customer1.iid) // auto-fill
             assert.isFalse(reservation.is_new_customer) // auto-fill
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'reserved')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
 
             const messages = await listInbox(imapClient)
             assert.lengthOf(messages, 1)
             assert.equal(messages[0].sender, USERNAME)
-            assert.equal(messages[0].subject, 'Wir haben deine Reservierung für 25.12.2026 18:00 Uhr erhalten')
+            assert.equal(messages[0].subject, `Wir haben deine Reservierung für ${fmtDate(pickup)} erhalten`)
             assert.deepEqual(messages[0].recipients, [customer1.email])
 
             await client.collection('reservation').delete(reservation.id)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'instock')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'instock')
         })
 
         it('should create a reservation for an existing customer by email', async () => {
             let reservation = await anonymousClient.collection('reservation').create({
                 customer_email: 'johndoe@leihlokal-ka.de',
-                items: [item1.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                items: [item2.id],
+                pickup,
             })
             assert.isNotNull(reservation)
             assert.doesNotHaveAnyKeys(reservation, ['customer_iid',
@@ -125,26 +127,57 @@ describe('Reservations', () => {
             assert.equal(reservation.customer_iid, customer1.iid) // auto-fill
             assert.isFalse(reservation.is_new_customer) // auto-fill
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'reserved')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
 
             const messages = await listInbox(imapClient)
             assert.lengthOf(messages, 1)
             assert.equal(messages[0].sender, USERNAME)
-            assert.equal(messages[0].subject, 'Wir haben deine Reservierung für 25.12.2026 18:00 Uhr erhalten')
+            assert.equal(messages[0].subject, `Wir haben deine Reservierung für ${fmtDate(pickup)} erhalten`)
             assert.deepEqual(messages[0].recipients, [customer1.email])
 
             await client.collection('reservation').delete(reservation.id)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'instock')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'instock')
+        })
+
+        it('should list deposits in the confirmation mail', async () => {
+            await anonymousClient.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item1.id, item2.id],  // deposit 10 and 0
+                pickup,
+            })
+
+            const messages = await listInbox(imapClient)
+            assert.lengthOf(messages, 1)
+            assert.include(messages[0].body, '(Pfand: 10,00 €)')
+            assert.include(messages[0].body, 'Gesamtpfand: 10,00 €')
+            assert.notInclude(messages[0].body, '(Pfand: 0,00 €)')  // no deposit shown for item2
+            assert.notInclude(messages[0].body, '%!')  // no go template formatting errors
+        })
+
+        it('should list non-integer deposits in the confirmation mail', async () => {
+            await client.collection('item').update(item2.id, { deposit: 12.5 })
+
+            await anonymousClient.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item1.id, item2.id],
+                pickup,
+            })
+
+            const messages = await listInbox(imapClient)
+            assert.lengthOf(messages, 1)
+            assert.include(messages[0].body, '(Pfand: 10,00 €)')
+            assert.include(messages[0].body, '(Pfand: 12,50 €)')
+            assert.include(messages[0].body, 'Gesamtpfand: 22,50 €')
         })
 
         it('should autofill customer info', async () => {
             let reservation = await anonymousClient.collection('reservation').create({
                 customer_email: customer1.email,
                 items: [item1.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                pickup,
             })
 
             reservation = await client.collection('reservation').getOne(reservation.id)
@@ -152,18 +185,15 @@ describe('Reservations', () => {
             assert.equal(reservation.customer_name, `${customer1.firstname} ${customer1.lastname}`)
             assert.equal(reservation.customer_phone, customer1.phone)
             assert.equal(reservation.customer_iid, customer1.iid)
-
-            await client.collection('reservation').delete(reservation.id)
         })
 
         it('should not autofill customer info for non-unique email', async () => {
-            const emailCustomer2 = customer2.email
             await client.collection('customer').update(customer2.id, { email: customer1.email })
 
             let reservation = await anonymousClient.collection('reservation').create({
                 customer_email: 'johndoe@leihlokal-ka.de',  // customer 1 email
                 items: [item1.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                pickup,
             })
 
             reservation = await client.collection('reservation').getOne(reservation.id)
@@ -171,9 +201,6 @@ describe('Reservations', () => {
             assert.isEmpty(reservation.customer_name)  // not required anymore
             assert.isEmpty(reservation.customer_phone)
             assert.equal(reservation.customer_iid, 0)
-
-            await client.collection('customer').update(customer2.id, { email: emailCustomer2 })
-            await client.collection('reservation').delete(reservation.id)
         })
 
         it('should create a reservation for a new customer', async () => {
@@ -183,23 +210,21 @@ describe('Reservations', () => {
                 customer_phone: '0123456789',
                 customer_email: testEmail,
                 items: [item1.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                pickup,
             })
             assert.isNotNull(reservation)
 
             const messages = await listInbox(imapClient)
             assert.lengthOf(messages, 1)
             assert.equal(messages[0].sender, USERNAME)
-            assert.equal(messages[0].subject, 'Wir haben deine Reservierung für 25.12.2026 18:00 Uhr erhalten')
+            assert.equal(messages[0].subject, `Wir haben deine Reservierung für ${fmtDate(pickup)} erhalten`)
             assert.deepEqual(messages[0].recipients, [testEmail])
-
-            await client.collection('reservation').delete(reservation.id)
         })
 
         it('should fail when required customer fields are missing', async () => {
             let reservationPromise = anonymousClient.collection('reservation').create({
                 items: [item1.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                pickup,
             })
             await assert.isRejected(reservationPromise)
             assert.isEmpty(await listInbox(imapClient))
@@ -209,7 +234,7 @@ describe('Reservations', () => {
             let reservationPromise = anonymousClient.collection('reservation').create({
                 customer_iid: 1000,
                 items: [item3.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                pickup,
             })
             await assert.isRejected(reservationPromise)
             assert.isEmpty(await listInbox(imapClient))
@@ -219,7 +244,7 @@ describe('Reservations', () => {
             let reservationPromise = anonymousClient.collection('reservation').create({
                 customer_iid: 1000,
                 items: [item1.id],
-                pickup: new Date(Date.parse('2026-12-27T17:00:00Z')),  // sunday
+                pickup: nextWeekday(0),  // sunday
             })
             await assert.isRejected(reservationPromise)
             assert.isEmpty(await listInbox(imapClient))
@@ -241,19 +266,16 @@ describe('Reservations', () => {
             let reservationPromise = anonymousClient.collection('reservation').create({
                 customer_iid: 1000,
                 items: [item1.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                pickup,
             })
             await assert.isRejected(reservationPromise)
 
             let reservation = await client.collection('reservation').create({
                 customer_iid: 1000,
                 items: [item1.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                pickup,
             })
             assert.isNotNull(reservation)
-
-            await client.collection('reservation').delete(reservation.id)
-            await client.collection('item').update(item1.id, { is_protected: false })
         })
     })
 
@@ -261,87 +283,166 @@ describe('Reservations', () => {
         it('should free up item when reservation is marked as done', async () => {
             let reservation = await anonymousClient.collection('reservation').create({
                 customer_iid: 1000,
-                items: [item1.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                items: [item2.id],
+                pickup,
             })
             assert.isNotNull(reservation)
 
             await purgeInbox(imapClient)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'reserved')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
 
             await client.collection('reservation').update(reservation.id, {
                 done: true
             })
             assert.isEmpty(await listInbox(imapClient))  // no mail sent for update
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'instock')
-
-            await client.collection('reservation').delete(reservation.id)
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'instock')
         })
 
         it('should properly update item statuses of modified reservation', async () => {
             let reservation = await anonymousClient.collection('reservation').create({
                 customer_iid: 1000,
-                items: [item1.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                items: [item2.id],
+                pickup,
             })
             assert.isNotNull(reservation)
 
-            item1 = await client.collection('item').getOne(item1.id)
             item2 = await client.collection('item').getOne(item2.id)
-            assert.equal(item1.status, 'reserved')
-            assert.equal(item2.status, 'instock')
+            assert.equal(item2.status, 'reserved')
 
             await client.collection('reservation').update(reservation.id, {
-                items: [item2.id],
+                items: [item1.id],
             })
 
             item1 = await client.collection('item').getOne(item1.id)
             item2 = await client.collection('item').getOne(item2.id)
-            assert.equal(item1.status, 'instock')
-            assert.equal(item2.status, 'reserved')
-
-            await client.collection('reservation').delete(reservation.id)
+            assert.equal(item1.status, 'instock') // multiple copies, one is reserved now
+            assert.equal(item2.status, 'instock')
         })
 
         it('should not update item status when changing other fields', async () => {
             let reservation = await anonymousClient.collection('reservation').create({
                 customer_iid: 1000,
-                items: [item1.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                items: [item2.id],
+                pickup,
             })
             assert.isNotNull(reservation)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'reserved')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
 
             await client.collection('reservation').update(reservation.id, {
                 comments: 'foobar',
             })
 
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
+        })
+    })
+
+    describe('Status set by hand', () => {
+        it('should go by status set by hand when reserving', async () => {
+            const reserve = (item) => anonymousClient.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item.id],
+                pickup,
+            })
+
+            // hold an item without reservation
+            await client.collection('item').update(item1.id, { status: 'reserved' })
+            await assert.isRejected(reserve(item1))
+
+            // release a reserved item
+            await reserve(item2)
+            await client.collection('item').update(item2.id, { status: 'instock' })
+            await reserve(item2)
+
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
+        })
+
+        it('should keep a status set by hand until the item\'s next rental or reservation change', async () => {
+            await client.collection('item').update(item2.id, { status: 'reserved' })
+            await client.collection('item').update(item2.id, { description: '<p>Edited</p>' })
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
+
+            const rental = await client.collection('rental').create({
+                customer: customer1.id,
+                items: [item2.id],
+                rented_on: new Date(),
+                requested_copies: {
+                    [item2.id]: 1,
+                },
+            })
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'outofstock')
+
+            await client.collection('rental').update(rental.id, { returned_on: new Date() })
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'instock')
+        })
+    })
+
+    describe('Copies', () => {
+        it('should reserve one copy per reservation of items with multiple copies', async () => {
+            // item1 has 4 copies, one of which is rented by jane
+            const reserve = () => anonymousClient.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item1.id],
+                pickup,
+            })
+
+            await reserve()
+            await reserve()
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'instock')  // one copy left
+
+            await reserve()
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'reserved')  // all remaining copies reserved
+
+            await assert.isRejected(reserve())
+        })
+
+        it('should make a copy available again when one of multiple reservations is cancelled', async () => {
+            const reserve = () => client.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item1.id],
+                pickup,
+            })
+
+            const reservations = [await reserve(), await reserve(), await reserve()]
             item1 = await client.collection('item').getOne(item1.id)
             assert.equal(item1.status, 'reserved')
 
-            await client.collection('reservation').delete(reservation.id)
+            await client.collection('reservation').update(reservations[0].id, { done: true })
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'instock')
+
+            await reserve()
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'reserved')
         })
+
     })
 
     describe('Housekeeping', () => {
         it('should properly clean up old dangling reservations and their item statuses', async () => {
             let newReservation = await client.collection('reservation').create({
                 customer_iid: 1000,
-                items: [item1.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                items: [item2.id],
+                pickup,
             })
             assert.isNotNull(newReservation)
             assert.isFalse(newReservation.done)
-            assert.equal(newReservation.items[0], item1.id)
+            assert.equal(newReservation.items[0], item2.id)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'reserved')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
 
             let oldReservation = await client.collection('reservation').getFirstListItem('customer_iid = 5000')
             assert.isNotNull(oldReservation)
@@ -360,15 +461,11 @@ describe('Reservations', () => {
             oldReservation = await client.collection('reservation').getOne(oldReservation.id)
             assert.isTrue(oldReservation.done)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item4.status, 'reserved')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
 
             item4 = await client.collection('item').getOne(item4.id)
             assert.equal(item4.status, 'instock')
-
-            await client.collection('reservation').update(oldReservation.id, { done: false }, { force: true })
-            await client.collection('item').update(item4.id, { status: 'reserved' })
-            await client.collection('reservation').delete(newReservation.id)
         })
     })
 
@@ -376,21 +473,21 @@ describe('Reservations', () => {
         it('should handle reservation cancellation', async () => {
             let reservation1 = await client.collection('reservation').create({
                 customer_iid: 1000,
-                items: [item1.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                items: [item2.id],
+                pickup,
             })
             let reservation2 = await client.collection('reservation').create({
                 customer_iid: 1000,
-                items: [item2.id],
-                pickup: new Date(Date.parse('2026-12-25T17:00:00Z')),
+                items: [item1.id],
+                pickup,
             })
 
             assert.lengthOf(await client.collection('reservation').getFullList(), 3)  // one old one already existed
 
             await purgeInbox(imapClient)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'reserved')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
 
             const response = await client.send('/reservation/cancel', {
                 query: {
@@ -403,16 +500,14 @@ describe('Reservations', () => {
             assert.lengthOf(reservations, 2)  // one old one already existed
             assert.equal(reservations[1].id, reservation2.id)
 
-            item1 = await client.collection('item').getOne(item1.id)
-            assert.equal(item1.status, 'instock')
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'instock')
 
             const messages = await listInbox(imapClient)
             assert.lengthOf(messages, 1)
             assert.equal(messages[0].sender, USERNAME)
-            assert.equal(messages[0].subject, 'Deine Reservierung für 25.12.2026 18:00 Uhr wurde storniert')
+            assert.equal(messages[0].subject, `Deine Reservierung für ${fmtDate(pickup)} wurde storniert`)
             assert.deepEqual(messages[0].recipients, [customer1.email])
-
-            await client.collection('reservation').delete(reservation2.id)
         })
     })
 })

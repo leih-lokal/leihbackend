@@ -70,8 +70,6 @@ describe('Customer', () => {
         assert.equal(messages[0].sender, USERNAME)
         assert.equal(messages[0].subject, 'Herzlich Willkommen im leih.lokal!')
         assert.deepEqual(messages[0].recipients, [testCustomer.email])
-
-        await client.collection('customer').delete(testCustomer.id)
     })
 
     describe('Auto-deletion', () => {
@@ -111,8 +109,6 @@ describe('Customer', () => {
             customer = await client.collection('customer').getOne(customer.id)
             assert.isAtLeast(new Date(customer.delete_reminder_sent).getTime(), t0.getTime())
             assert.isAtMost(new Date(customer.delete_reminder_sent).getTime(), new Date().getTime())
-
-            await client.collection('customer').delete(customer.id)
         })
 
         it('should not send deletion notice to customer with recent rental', async () => {
@@ -126,7 +122,7 @@ describe('Customer', () => {
             })
             await purgeInbox(imapClient)
 
-            const rental = await client.collection('rental').create({
+            await client.collection('rental').create({
                 customer: customer.id,
                 items: [item1.id],
                 rented_on: new Date().addYears(-1).addDays(-1),
@@ -140,9 +136,6 @@ describe('Customer', () => {
 
             let messages = await listInbox(imapClient) // should not send a deletion reminder email
             assert.lengthOf(messages, 0)
-
-            await client.collection('rental').delete(rental.id)
-            await client.collection('customer').delete(customer.id)
         })
 
         it('should send deletion notice to customer with old rental', async () => {
@@ -156,7 +149,7 @@ describe('Customer', () => {
             })
             await purgeInbox(imapClient)
 
-            let rental = await client.collection('rental').create({
+            await client.collection('rental').create({
                 customer: customer.id,
                 items: [item1.id],
                 rented_on: new Date().addYears(-3),
@@ -173,9 +166,6 @@ describe('Customer', () => {
             assert.equal(messages[0].sender, USERNAME)
             assert.equal(messages[0].subject, `[leih.lokal] Löschung Ihrer Daten im leih.lokal nach Inaktivität (Kunden-Nr. ${customer.iid})`)
             assert.deepEqual(messages[0].recipients, [customer.email])
-
-            await client.collection('rental').delete(rental.id)
-            await client.collection('customer').delete(customer.id)
         })
 
         it('should do nothing while waiting for customers reply', async () => {
@@ -199,8 +189,6 @@ describe('Customer', () => {
             let logs = await client.logs.getList(1, 10, { sort: '-created' })
             let filteredLogs = logs.items.filter((l) => l.message === `Currently waiting for reply to deletion reminder from ${customer.email} (${customer.id}).`)
             assert.lengthOf(filteredLogs, 1)
-
-            await client.collection('customer').delete(customer.id)
         })
 
         it('should delete customer after no response to deletion notice', async () => {

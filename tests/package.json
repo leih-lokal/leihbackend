@@ -2,7 +2,7 @@
   "name": "leihbackend-tests",
   "type": "module",
   "scripts": {
-    "test": "mocha -t 20000 ./test_*.js"
+    "test": "mocha -t 20000 --require ./hooks.js ./test_*.js"
   },
   "devDependencies": {
     "chai": "^6.2.1",

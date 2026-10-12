@@ -96,7 +96,8 @@ function validateFields(r) {
 }
 
 function validateStatus(r) {
-    // We currently don't consider number of copies here, see comment below for details.
+    // Items with multiple copies can be reserved multiple times: every reservation reserves one copy of each item, and items stay instock as long as copies are left (see itemService.refreshStatus()).
+    // Status is taken as is, i.e. setting it by hand makes an item (un)available, e.g. instock to release an item that got stuck.
     const isUnavailable = (item) => item.getString('status') !== 'instock'
 
     $app.expandRecord(r, ['items'], null)
@@ -187,49 +188,34 @@ function autofillCustomer(record, app = $app) {
 }
 
 // update item statuses
-// meant to be called right before reservation is saved
+// meant to be called right after reservation is saved (or deleted)
 function updateItems(reservation, oldReservation = null, isDelete = false, app = $app) {
-    // Note: for simplicity, we're currently not considering the number of copies of an item. If an item is reserved, we simply assume all instance of it to be reserved.
-    // Otherwise things get confusing (e.g. customer reserves an item, but status on the website is still shown as available, etc.).
-
-    // TODO: handle (or forbid) the case where a reservation is marked as done and it's item list is updated at the same time (currently unhandled)
+    // Every active (not done) reservation reserves one copy of each of its items, see itemService.refreshStatus() for how this affects item status.
 
     const itemService = require(`${__hooks}/services/item.js`)
 
-    const isDone = reservation.getBool('done') || isDelete
+    if (isDelete) oldReservation = reservation
 
-    const itemIdsNew = reservation.getStringSlice('items') // explicitly not using record expansion here, because would yield empty result for whatever reason
-    const itemIdsOld = oldReservation?.getStringSlice('items') || []
+    const isActive = (r) => r && !r.getBool('done')
+    const itemIdsNew = !isDelete && isActive(reservation) ? reservation.getStringSlice('items') : [] // explicitly not using record expansion here, because would yield empty result for whatever reason
+    const itemIdsOld = isActive(oldReservation) ? oldReservation.getStringSlice('items') : []
 
     const itemIdsAdded = itemIdsNew.filter((id) => !itemIdsOld.includes(id))
     const itemIdsRemoved = itemIdsOld.filter((id) => !itemIdsNew.includes(id))
-    const itemIdsUnchanged = itemIdsNew.filter((id) => itemIdsOld.includes(id))
 
-    const itemsAdded = app.findRecordsByIds('item', itemIdsAdded)
-    const itemsRemoved = app.findRecordsByIds('item', itemIdsRemoved)
-    const itemUnchanged = app.findRecordsByIds('item', itemIdsUnchanged)
-
-    const items = [...itemsAdded, ...itemsRemoved, ...itemUnchanged]
-    items.forEach((item) => {
-        const [itemIid, itemStatus] = [item.getInt('iid'), item.getString('status')]
-        const doUnreserve = isDone || itemIdsRemoved.includes(item.id)
-        const doReserve = !doUnreserve && itemIdsAdded.includes(item.id)
-
-        if (doUnreserve) {
-            if (itemStatus === 'reserved') return itemService.setStatus(item, 'instock', app) // was reserved -> reservation cleared -> available again
-            app.logger().warn(`Not resetting availability status of item ${item.id} (${itemIid}) upon cleared reservation, because was not marked as reserved (${itemStatus} instead).`)
-        } else if (doReserve) {
-            if (itemStatus !== 'instock') throw new InternalServerError(`Can't set status of item ${item.id} (${itemIid}) to 'reserved', because currently not available (${itemStatus} instead).`)
-            itemService.setStatus(item, 'reserved', app)
+    app.findRecordsByIds('item', [...itemIdsAdded, ...itemIdsRemoved]).forEach((item) => {
+        if (itemIdsAdded.includes(item.id) && item.getString('status') !== 'instock') {
+            throw new BadRequestError(`Item ${item.getInt('iid')} not available.`)
         }
+        itemService.refreshStatus(item, app)
     })
 }
 
 // E-Mail Sending
 
 function sendConfirmationMail(r) {
-    const { fmtDate } = require(`${__hooks}/utils/common.js`)
-    const { DRY_MODE, IMPORT_MODE } = require(`${__hooks}/constants.js`)
+    const { fmtDate, fmtCurrency } = require(`${__hooks}/utils/common.js`)
+    const { sendMail } = require(`${__hooks}/services/mail.js`)
 
     // Skip email if on_premises is true
     if (r.getBool('on_premises')) {
@@ -238,70 +224,40 @@ function sendConfirmationMail(r) {
 
     $app.expandRecord(r, ['items'], null)
 
-    const customerEmail = r.getString('customer_email')
-    const pickupDateStr = fmtDate(r.getDateTime('pickup'))
-    const cancelLink = `${$app.settings().meta.appURL}/reservation/cancel?token=${r.getString('cancel_token')}`
+    const items = r.expandedAll('items')
+    const depositTotal = items.reduce((sum, i) => sum + i.getFloat('deposit'), 0)
 
-    const items = r.expandedAll('items').map((i) => ({
-        iid: i.getInt('iid'),
-        name: i.getString('name'),
-        deposit: i.getFloat('deposit'),
-    }))
-    const depositTotal = items.reduce((sum, i) => sum + i.deposit, 0)
-
-    const html = $template.loadFiles(`${__hooks}/views/layout.html`, `${__hooks}/views/mail/reservation_confirmation.html`).render({
-        pickup: pickupDateStr,
+    sendMail('reservation_confirmation', r.getString('customer_email'), {
+        pickup: fmtDate(r.getDateTime('pickup')),
         customer_name: r.getString('customer_name'),
         customer_iid: r.getInt('customer_iid'),
-        customer_email: customerEmail,
+        customer_email: r.getString('customer_email'),
         customer_phone: r.getString('customer_phone'),
         comments: r.getString('comments'),
-        items: items,
-        deposit_total: depositTotal,
-        cancel_link: cancelLink,
+        // deposits are passed preformatted, empty if zero
+        items: items.map((i) => ({
+            iid: i.getInt('iid'),
+            name: i.getString('name'),
+            deposit: i.getFloat('deposit') > 0 ? fmtCurrency(i.getFloat('deposit')) : '',
+        })),
+        deposit_total: depositTotal > 0 ? fmtCurrency(depositTotal) : '',
+        cancel_link: `${$app.settings().meta.appURL}/reservation/cancel?token=${r.getString('cancel_token')}`,
         otp: r.getString('otp'),
     })
-
-    const message = new MailerMessage({
-        from: {
-            address: $app.settings().meta.senderAddress,
-            name: $app.settings().meta.senderName,
-        },
-        to: [{ address: customerEmail }],
-        subject: `Wir haben deine Reservierung für ${pickupDateStr} erhalten`,
-        html,
-    })
-
-    if (!DRY_MODE && !IMPORT_MODE) $app.newMailClient().send(message)
 }
 
 function sendCancellationMail(r) {
     const { fmtDate } = require(`${__hooks}/utils/common.js`)
-    const { DRY_MODE, IMPORT_MODE } = require(`${__hooks}/constants.js`)
+    const { sendMail } = require(`${__hooks}/services/mail.js`)
 
     // Skip email if on_premises is true
     if (r.getBool('on_premises')) {
         return
     }
 
-    const customerEmail = r.getString('customer_email')
-    const pickupDateStr = fmtDate(r.getDateTime('pickup'))
-
-    const html = $template.loadFiles(`${__hooks}/views/layout.html`, `${__hooks}/views/mail/reservation_cancellation.html`).render({
-        pickup: pickupDateStr,
+    sendMail('reservation_cancellation', r.getString('customer_email'), {
+        pickup: fmtDate(r.getDateTime('pickup')),
     })
-
-    const message = new MailerMessage({
-        from: {
-            address: $app.settings().meta.senderAddress,
-            name: $app.settings().meta.senderName,
-        },
-        to: [{ address: customerEmail }],
-        subject: `Deine Reservierung für ${pickupDateStr} wurde storniert`,
-        html,
-    })
-
-    if (!DRY_MODE && !IMPORT_MODE) $app.newMailClient().send(message)
 }
 
 module.exports = {

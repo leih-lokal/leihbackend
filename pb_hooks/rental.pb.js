@@ -16,10 +16,9 @@
 onRecordCreateExecute((e) => {
     const { IMPORT_MODE } = require(`${__hooks}/constants.js`)
     const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
-    const { validate, updateItems } = require(`${__hooks}/services/rental.js`)
+    const { updateItems } = require(`${__hooks}/services/rental.js`)
 
     wrapTransactional(e, (e) => {
-        if (!IMPORT_MODE) validate(e.record)
         e.next()
 
         const customer = e.app.findRecordById('customer', e.record.getString('customer'))
@@ -35,7 +34,6 @@ onRecordUpdateExecute((e) => {
     const { updateItems } = require(`${__hooks}/services/rental.js`)
 
     wrapTransactional(e, (e) => {
-        // TODO: validate status of potentially newly added items
         const oldRecord = e.app.findRecordById('rental', e.record.id)
         e.next()
 

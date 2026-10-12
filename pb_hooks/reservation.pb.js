@@ -79,14 +79,12 @@ onRecordUpdateExecute((e) => {
     const { updateItems } = require(`${__hooks}/services/reservation.js`)
 
     wrapTransactional(e, (e) => {
-        const oldRecord = $app.findRecordById('reservation', e.record.id)
+        const oldRecord = e.app.findRecordById('reservation', e.record.id)
 
         e.next()
 
         e.app.logger().info(`Updated reservation ${e.record.id} of ${e.record.getString('customer_email')}`)
 
-        // Note: "undoing" a closed transaction will not update item statuses accordingly.
-        // Instead, undoing should be prevented beforehand on a request level
         updateItems(e.record, oldRecord, false, e.app)
     })
 

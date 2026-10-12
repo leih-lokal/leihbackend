@@ -11,8 +11,10 @@
 
 const { handlePostEmergencyClosing } = require(`${__hooks}/routes/misc`)
 const { handleGetOpeningHours } = require(`${__hooks}/routes/opening-hours`)
+const { handleGetImageCompression } = require(`${__hooks}/routes/image-compression`)
 
 // Routes
 // ----- //
 routerAdd('post', '/api/misc/emergency_closing', handlePostEmergencyClosing, $apis.requireSuperuserAuth())
 routerAdd('get', '/api/opening-hours', handleGetOpeningHours)
+routerAdd('get', '/api/image-compression', handleGetImageCompression)
