@@ -107,12 +107,13 @@ function exportCsv(app = $app) {
 // update item statuses
 // meant to be called right after rental is saved (or deleted)
 function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
-    // TODO: handle (or forbid) the case where a rental is returned and it's item list is updated at the same time (currently unhandled)
-
     const itemService = require(`${__hooks}/services/item.js`)
 
     const copiesOutNew = isDelete ? {} : getCopiesOut(rental)
     const copiesOutOld = oldRental ? getCopiesOut(oldRental) : {}
+
+    // re-opening a returned rental (i.e. undoing the return) doesn't hand out anything, so it doesn't fulfill the customer's reservations either
+    const isReopened = !isDelete && oldRental && !oldRental.getDateTime('returned_on').isZero() && rental.getDateTime('returned_on').isZero()
 
     // only touch items whose number of rented copies actually changed, e.g. don't retroactively update items of already returned rentals
     const itemIds = [...new Set([...Object.keys(copiesOutNew), ...Object.keys(copiesOutOld)])]
@@ -122,7 +123,7 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
         const numAdded = (copiesOutNew[item.id] || 0) - (copiesOutOld[item.id] || 0)
         if (numAdded > 0) {
             validateAvailable(item, numAdded, app)
-            closeReservations(item, rental, numAdded, app)
+            closeReservations(item, rental, isReopened ? 0 : numAdded, app)
         }
         itemService.refreshStatus(item, app)
     })
@@ -130,10 +131,13 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
 
 // meant to be called right after rental is saved, i.e. the rental's copies are already counted
 function validateAvailable(item, numAdded, app = $app) {
+    const { AVAILABILITY_STATUSES } = require(`${__hooks}/services/item.js`)
+
     const itemStatus = item.getString('status')
 
-    // Reserved items can be rented, too, even to someone other than the reserver. Reservations will be closed accordingly (see below).
-    if (!['instock', 'reserved'].includes(itemStatus)) {
+    // Only manually set statuses (e.g. repairing) make an item unavailable. Otherwise the number of copies decides, regardless of the (possibly outdated) status.
+    // Reserved copies can be rented, too, even to someone other than the reserver. Reservations will be closed accordingly (see below).
+    if (!AVAILABILITY_STATUSES.includes(itemStatus)) {
         throw new BadRequestError(`Item ${item.getInt('iid')} is not available for rental (status: ${itemStatus}).`)
     }
 
@@ -145,9 +149,10 @@ function validateAvailable(item, numAdded, app = $app) {
 }
 
 // Close active reservations of an item that is being rented out:
-// - the renting customer's own reservations, because they are being picked up
+// - the renting customer's own reservations (at most numPickedUp, earliest pickup first), because they are being picked up
 // - others (earliest pickup first) if their reserved copies are rented out now, i.e. if there are more active reservations than copies left
-function closeReservations(item, rental, numAdded, app = $app) {
+// Closing a reservation releases all of its items.
+function closeReservations(item, rental, numPickedUp, app = $app) {
     const reservations = app.findRecordsByFilter('reservation', 'items ~ {:itemId} && done = false', 'pickup', 0, 0, { itemId: item.id })
     if (!reservations.length) return
 
@@ -155,7 +160,7 @@ function closeReservations(item, rental, numAdded, app = $app) {
     const customerEmail = customer.getString('email').toLowerCase()
     const isOwn = (r) => (customerEmail && r.getString('customer_email').toLowerCase() === customerEmail) || (r.getInt('customer_iid') > 0 && r.getInt('customer_iid') === customer.getInt('iid'))
 
-    const ownReservations = reservations.filter(isOwn).slice(0, numAdded)
+    const ownReservations = reservations.filter(isOwn).slice(0, numPickedUp)
     const otherReservations = reservations.filter((r) => !ownReservations.some((o) => o.id === r.id))
     const numFree = item.getInt('copies') - countCopiesActiveByItem(item.id, app) - otherReservations.length
 

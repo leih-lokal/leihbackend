@@ -20,11 +20,11 @@ onRecordUpdateExecute((e) => {
     const { refreshStatus } = require(`${__hooks}/services/item.js`)
 
     wrapTransactional(e, (e) => {
-        const oldRecord = e.app.findRecordById('item', e.record.id)
         e.next()
 
-        // availability depends on the number of copies
-        if (!IMPORT_MODE && e.record.getInt('copies') !== oldRecord.getInt('copies')) refreshStatus(e.record, e.app)
+        // Availability statuses are derived from rentals and reservations, so re-derive them whenever they might have been overwritten
+        // (e.g. by an edit form submitting the status it loaded before) or the number of copies changed. Manually set statuses (e.g. repairing) are left as is.
+        if (!IMPORT_MODE) refreshStatus(e.record, e.app)
     })
 }, 'item')
 

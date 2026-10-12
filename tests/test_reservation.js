@@ -1,6 +1,7 @@
 import * as chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { getAnonymousClient, getClient, initImap, listInbox, getFakeMailAccount, configureSmtp, USERNAME, purgeInbox, nextPickup, nextWeekday, fmtDate } from './base.js'
+import { sqlite } from './hooks.js'
 import { assert } from 'chai'
 import { describe, it, before } from 'mocha'
 import { setTimeout } from 'timers/promises'
@@ -382,6 +383,38 @@ describe('Reservations', () => {
             await reserve()
             item1 = await client.collection('item').getOne(item1.id)
             assert.equal(item1.status, 'reserved')
+        })
+
+        it('should re-derive item status when it is set manually', async () => {
+            await client.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item2.id],
+                pickup,
+            })
+
+            await client.collection('item').update(item2.id, { status: 'repairing' })  // manual status
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'repairing')
+
+            await client.collection('item').update(item2.id, { status: 'instock' })
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
+        })
+
+        it('should reserve items with outdated status as long as copies are left', async () => {
+            // e.g. statuses from before they were derived from copies (any reservation made an item reserved, partial returns weren't considered)
+            for (const status of ['reserved', 'outofstock']) {
+                sqlite(`UPDATE item SET status = '${status}' WHERE id = '${item1.id}';`)
+
+                await anonymousClient.collection('reservation').create({
+                    customer_iid: 1000,
+                    items: [item1.id],
+                    pickup,
+                })
+
+                item1 = await client.collection('item').getOne(item1.id)
+                assert.equal(item1.status, 'instock')  // 4 copies, 1 rented, 1 - 2 reserved
+            }
         })
 
         it('should update item status when the number of copies changes', async () => {

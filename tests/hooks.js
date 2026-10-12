@@ -7,7 +7,8 @@ import { readFileSync } from 'fs'
 const DATA_DIR = process.env.PB_DATA_DIR
 const SEED = readFileSync(new URL('./seed.sql', import.meta.url), 'utf8')
 
-function sqlite(input) {
+// Run SQL against the test database directly, e.g. to set up state that can't be created via the API
+export function sqlite(input) {
     return execFileSync('sqlite3', ['-bail', `${DATA_DIR}/data.db`], { input: `.timeout 5000\n${input}`, encoding: 'utf8' })
 }
 

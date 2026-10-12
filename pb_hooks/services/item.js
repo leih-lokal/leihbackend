@@ -73,6 +73,7 @@ function exportCsv(app = $app) {
 }
 
 module.exports = {
+    AVAILABILITY_STATUSES,
     setStatus,
     countFreeCopies,
     refreshStatus,

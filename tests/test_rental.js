@@ -1,6 +1,7 @@
 import * as chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { getAnonymousClient, getClient, initImap, listInbox, getFakeMailAccount, configureSmtp, USERNAME, purgeInbox, nextPickup } from './base.js'
+import { sqlite } from './hooks.js'
 import { assert } from 'chai'
 import { describe, it, before } from 'mocha'
 import { setTimeout } from 'timers/promises'
@@ -185,6 +186,7 @@ describe('Rentals', () => {
         })
 
         it('should allow to rent an item reserved by new customer', async () => {
+            // e.g. new customer registered with a different e-mail address, i.e. reservation can't be matched to the renting customer
             let reservation = await client.collection('reservation').create({
                 customer_email: "somenewcustomer@leihlokal-ka.de",
                 is_new_customer: true,
@@ -403,15 +405,22 @@ describe('Rentals', () => {
             let rental = await client.collection('rental').create({
                 customer: customer.id,
                 items: [item1.id],
-                rented_on: new Date(),
+                rented_on: new Date().addYears(-1),
                 requested_copies: {
-                    [item1.id]: 3, // item has 3 copies available (4 total, one rented by jane)
+                    [item1.id]: 3,
                 },
                 returned_on: new Date().addYears(-1),
             })
 
-            // manually make item unavailable (e.g. because rented by someone else)
-            await client.collection('item').update(item1.id, { status: 'outofstock' })
+            // make item unavailable by renting all remaining copies to someone else
+            await client.collection('rental').create({
+                customer: customer1.id,
+                items: [item1.id],
+                rented_on: new Date(),
+                requested_copies: {
+                    [item1.id]: 3,
+                },
+            })
             item1 = await client.collection('item').getOne(item1.id)
             assert.equal(item1.status, 'outofstock')
 
@@ -423,6 +432,47 @@ describe('Rentals', () => {
 
             item1 = await client.collection('item').getOne(item1.id)
             assert.equal(item1.status, 'outofstock')
+        })
+
+        it('should rent items with outdated status as long as copies are left', async () => {
+            // e.g. status from before statuses were derived from copies, or after an import
+            sqlite(`UPDATE item SET status = 'outofstock' WHERE id = '${item1.id}';`)
+
+            await client.collection('rental').create({
+                customer: customer1.id,
+                items: [item1.id],
+                rented_on: new Date(),
+                requested_copies: {
+                    [item1.id]: 1,
+                },
+            })
+
+            item1 = await client.collection('item').getOne(item1.id)
+            assert.equal(item1.status, 'instock') // 2 of 4 copies rented
+        })
+
+        it('should not close the customer\'s reservations when re-opening a returned rental', async () => {
+            let rental = await client.collection('rental').create({
+                customer: customer1.id,
+                items: [item1.id],
+                rented_on: new Date(),
+                requested_copies: {
+                    [item1.id]: 1,
+                },
+            })
+            await client.collection('rental').update(rental.id, { returned_on: new Date() })
+
+            let reservation = await client.collection('reservation').create({
+                customer_email: customer1.email,
+                items: [item1.id],
+                pickup: nextPickup(),
+            })
+
+            // undo the return
+            await client.collection('rental').update(rental.id, { returned_on: '' })
+
+            reservation = await client.collection('reservation').getOne(reservation.id)
+            assert.isFalse(reservation.done)
         })
 
         it('should update item stock correctly when a rental is changed', async () => {

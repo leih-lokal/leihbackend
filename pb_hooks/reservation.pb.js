@@ -79,7 +79,7 @@ onRecordUpdateExecute((e) => {
     const { updateItems } = require(`${__hooks}/services/reservation.js`)
 
     wrapTransactional(e, (e) => {
-        const oldRecord = $app.findRecordById('reservation', e.record.id)
+        const oldRecord = e.app.findRecordById('reservation', e.record.id)
 
         e.next()
 
