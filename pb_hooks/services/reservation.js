@@ -96,11 +96,9 @@ function validateFields(r) {
 }
 
 function validateStatus(r) {
-    const itemService = require(`${__hooks}/services/item.js`)
-
-    // Items with multiple copies can be reserved multiple times. Every reservation reserves one copy of each item.
-    // Only manually set statuses (e.g. repairing) make an item unavailable. Otherwise the number of free copies decides, regardless of the (possibly outdated) status.
-    const isUnavailable = (item) => !itemService.AVAILABILITY_STATUSES.includes(item.getString('status')) || itemService.countFreeCopies(item) < 1
+    // Items with multiple copies can be reserved multiple times: every reservation reserves one copy of each item, and items stay instock as long as copies are left (see itemService.refreshStatus()).
+    // Status is taken as is, i.e. setting it by hand makes an item (un)available, e.g. instock to release an item that got stuck.
+    const isUnavailable = (item) => item.getString('status') !== 'instock'
 
     $app.expandRecord(r, ['items'], null)
 
@@ -206,8 +204,7 @@ function updateItems(reservation, oldReservation = null, isDelete = false, app =
     const itemIdsRemoved = itemIdsOld.filter((id) => !itemIdsNew.includes(id))
 
     app.findRecordsByIds('item', [...itemIdsAdded, ...itemIdsRemoved]).forEach((item) => {
-        // reservation is saved already, i.e. counted as reserving a copy
-        if (itemIdsAdded.includes(item.id) && (!itemService.AVAILABILITY_STATUSES.includes(item.getString('status')) || itemService.countFreeCopies(item, app) < 0)) {
+        if (itemIdsAdded.includes(item.id) && item.getString('status') !== 'instock') {
             throw new BadRequestError(`Item ${item.getInt('iid')} not available.`)
         }
         itemService.refreshStatus(item, app)

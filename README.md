@@ -140,14 +140,15 @@ For the long-term roadmap and future plans for out software setup, please refer 
 
 ## Developer Notes
 ### Item availability
-* An item's status is derived from its number of `copies`, its rented copies and its active reservations:
+* Whenever an item's rentals or reservations change, its status is derived from its number of `copies`, its rented copies and its active reservations:
   * `outofstock` if all copies are rented
   * `reserved` if all copies that are not rented are reserved
   * `instock` otherwise
 * Rented copies are the copies requested by rentals that weren't returned yet (`returned_on` not set), minus copies that were already returned (partial return, see `returned_items`).
-* Every active reservation (not `done`) reserves one copy of each of its items. Items can be reserved as long as there are copies that are neither rented nor reserved.
+* Every active reservation (not `done`) reserves one copy of each of its items, i.e. items with multiple copies stay `instock` (and can be reserved again) as long as copies are left.
+* Items can be reserved if they are `instock`, and rented if they are `instock` or `reserved` (and enough copies aren't rented out).
 * Reserved copies can still be rented. Renting copies of an item closes as many of the renting customer's own reservations of it (earliest pickup first). Reservations of other customers are closed (earliest pickup first) only if their reserved copies are rented out. Closing a reservation releases all of its items, and its customer isn't notified.
-* These statuses are re-derived whenever rentals, reservations or the item change, i.e. they can't be set manually. Other statuses (e.g. `repairing`, `lost`, `deleted`) are set manually and never changed automatically. Items with such a status can't be rented or reserved.
+* Statuses can always be set by hand, e.g. to release an item that got stuck (`instock`) or to take it out of circulation (`outofstock`). A status set by hand lasts until the item's next rental or reservation change, which derives it again. Other statuses (e.g. `repairing`, `lost`, `deleted`) are only set by hand and never changed automatically.
 
 ### Deletion
 * Deletions from customers cascade to all entities referencing customers using a foreign key, i.e. deleting a customer will also remove all their rental objects.

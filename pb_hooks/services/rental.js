@@ -131,13 +131,11 @@ function updateItems(rental, oldRental = null, isDelete = false, app = $app) {
 
 // meant to be called right after rental is saved, i.e. the rental's copies are already counted
 function validateAvailable(item, numAdded, app = $app) {
-    const { AVAILABILITY_STATUSES } = require(`${__hooks}/services/item.js`)
-
     const itemStatus = item.getString('status')
 
-    // Only manually set statuses (e.g. repairing) make an item unavailable. Otherwise the number of copies decides, regardless of the (possibly outdated) status.
-    // Reserved copies can be rented, too, even to someone other than the reserver. Reservations will be closed accordingly (see below).
-    if (!AVAILABILITY_STATUSES.includes(itemStatus)) {
+    // Reserved items can be rented, too, even to someone other than the reserver. Reservations will be closed accordingly (see below).
+    // Status is taken as is, i.e. setting it by hand makes an item (un)available, e.g. outofstock to take it out of circulation.
+    if (!['instock', 'reserved'].includes(itemStatus)) {
         throw new BadRequestError(`Item ${item.getInt('iid')} is not available for rental (status: ${itemStatus}).`)
     }
 

@@ -1,7 +1,6 @@
 import * as chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { getAnonymousClient, getClient, initImap, listInbox, getFakeMailAccount, configureSmtp, USERNAME, purgeInbox, nextPickup, nextWeekday, fmtDate } from './base.js'
-import { sqlite } from './hooks.js'
 import { assert } from 'chai'
 import { describe, it, before } from 'mocha'
 import { setTimeout } from 'timers/promises'
@@ -344,6 +343,50 @@ describe('Reservations', () => {
         })
     })
 
+    describe('Status set by hand', () => {
+        it('should go by status set by hand when reserving', async () => {
+            const reserve = (item) => anonymousClient.collection('reservation').create({
+                customer_iid: 1000,
+                items: [item.id],
+                pickup,
+            })
+
+            // hold an item without reservation
+            await client.collection('item').update(item1.id, { status: 'reserved' })
+            await assert.isRejected(reserve(item1))
+
+            // release a reserved item
+            await reserve(item2)
+            await client.collection('item').update(item2.id, { status: 'instock' })
+            await reserve(item2)
+
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
+        })
+
+        it('should keep a status set by hand until the item\'s next rental or reservation change', async () => {
+            await client.collection('item').update(item2.id, { status: 'reserved' })
+            await client.collection('item').update(item2.id, { description: '<p>Edited</p>' })
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'reserved')
+
+            const rental = await client.collection('rental').create({
+                customer: customer1.id,
+                items: [item2.id],
+                rented_on: new Date(),
+                requested_copies: {
+                    [item2.id]: 1,
+                },
+            })
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'outofstock')
+
+            await client.collection('rental').update(rental.id, { returned_on: new Date() })
+            item2 = await client.collection('item').getOne(item2.id)
+            assert.equal(item2.status, 'instock')
+        })
+    })
+
     describe('Copies', () => {
         it('should reserve one copy per reservation of items with multiple copies', async () => {
             // item1 has 4 copies, one of which is rented by jane
@@ -385,55 +428,6 @@ describe('Reservations', () => {
             assert.equal(item1.status, 'reserved')
         })
 
-        it('should re-derive item status when it is set manually', async () => {
-            await client.collection('reservation').create({
-                customer_iid: 1000,
-                items: [item2.id],
-                pickup,
-            })
-
-            await client.collection('item').update(item2.id, { status: 'repairing' })  // manual status
-            item2 = await client.collection('item').getOne(item2.id)
-            assert.equal(item2.status, 'repairing')
-
-            await client.collection('item').update(item2.id, { status: 'instock' })
-            item2 = await client.collection('item').getOne(item2.id)
-            assert.equal(item2.status, 'reserved')
-        })
-
-        it('should reserve items with outdated status as long as copies are left', async () => {
-            // e.g. statuses from before they were derived from copies (any reservation made an item reserved, partial returns weren't considered)
-            for (const status of ['reserved', 'outofstock']) {
-                sqlite(`UPDATE item SET status = '${status}' WHERE id = '${item1.id}';`)
-
-                await anonymousClient.collection('reservation').create({
-                    customer_iid: 1000,
-                    items: [item1.id],
-                    pickup,
-                })
-
-                item1 = await client.collection('item').getOne(item1.id)
-                assert.equal(item1.status, 'instock')  // 4 copies, 1 rented, 1 - 2 reserved
-            }
-        })
-
-        it('should update item status when the number of copies changes', async () => {
-            await client.collection('reservation').create({
-                customer_iid: 1000,
-                items: [item2.id],
-                pickup,
-            })
-            item2 = await client.collection('item').getOne(item2.id)
-            assert.equal(item2.status, 'reserved')
-
-            await client.collection('item').update(item2.id, { copies: 2 })
-            item2 = await client.collection('item').getOne(item2.id)
-            assert.equal(item2.status, 'instock')
-
-            await client.collection('item').update(item2.id, { copies: 1 })
-            item2 = await client.collection('item').getOne(item2.id)
-            assert.equal(item2.status, 'reserved')
-        })
     })
 
     describe('Housekeeping', () => {

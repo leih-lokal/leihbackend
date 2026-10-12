@@ -1,20 +1,13 @@
 // Important: every write operation run as part of a transactional event hook must use the event's txApp instead of global $app. See reservation.pb.js for details.
 
-// Statuses derived from active rentals and reservations. Other statuses (e.g. repairing, lost, deleted) are set manually and never changed automatically.
+// Statuses derived from active rentals and reservations. They can be set by hand anyway (e.g. to fix an item that got stuck), which lasts until the item's next rental or reservation change.
+// Other statuses (e.g. repairing, lost, deleted) are set by hand only and never changed automatically.
 const AVAILABILITY_STATUSES = ['instock', 'reserved', 'outofstock']
 
 function setStatus(item, status, app = $app) {
     item.set('status', status)
     app.save(item)
     app.logger().info(`Updated status of item ${item.id} to ${status}.`)
-}
-
-// Number of copies neither rented nor reserved (every active reservation reserves one copy of each of its items)
-function countFreeCopies(item, app = $app) {
-    const rentalService = require(`${__hooks}/services/rental.js`)
-    const reservationService = require(`${__hooks}/services/reservation.js`)
-
-    return item.getInt('copies') - rentalService.countCopiesActiveByItem(item.id, app) - reservationService.countActiveByItem(item.id, app)
 }
 
 // Derive an item's availability status from its number of copies, rented copies and active reservations:
@@ -73,9 +66,7 @@ function exportCsv(app = $app) {
 }
 
 module.exports = {
-    AVAILABILITY_STATUSES,
     setStatus,
-    countFreeCopies,
     refreshStatus,
     exportCsv,
 }

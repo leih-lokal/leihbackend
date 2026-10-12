@@ -11,23 +11,6 @@
 
 const { handleGetItemsCsv } = require(`${__hooks}/routes/item`)
 
-// Record hooks
-// ----- //
-
-onRecordUpdateExecute((e) => {
-    const { IMPORT_MODE } = require(`${__hooks}/constants.js`)
-    const { wrapTransactional } = require(`${__hooks}/utils/db.js`)
-    const { refreshStatus } = require(`${__hooks}/services/item.js`)
-
-    wrapTransactional(e, (e) => {
-        e.next()
-
-        // Availability statuses are derived from rentals and reservations, so re-derive them whenever they might have been overwritten
-        // (e.g. by an edit form submitting the status it loaded before) or the number of copies changed. Manually set statuses (e.g. repairing) are left as is.
-        if (!IMPORT_MODE) refreshStatus(e.record, e.app)
-    })
-}, 'item')
-
 // Routes
 // ----- //
 routerAdd('get', '/api/item/csv', handleGetItemsCsv, $apis.requireSuperuserAuth())

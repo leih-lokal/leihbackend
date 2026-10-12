@@ -1,7 +1,6 @@
 import * as chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { getAnonymousClient, getClient, initImap, listInbox, getFakeMailAccount, configureSmtp, USERNAME, purgeInbox, nextPickup } from './base.js'
-import { sqlite } from './hooks.js'
 import { assert } from 'chai'
 import { describe, it, before } from 'mocha'
 import { setTimeout } from 'timers/promises'
@@ -434,11 +433,8 @@ describe('Rentals', () => {
             assert.equal(item1.status, 'outofstock')
         })
 
-        it('should rent items with outdated status as long as copies are left', async () => {
-            // e.g. status from before statuses were derived from copies, or after an import
-            sqlite(`UPDATE item SET status = 'outofstock' WHERE id = '${item1.id}';`)
-
-            await client.collection('rental').create({
+        it('should go by status set by hand when renting', async () => {
+            const rent = () => client.collection('rental').create({
                 customer: customer1.id,
                 items: [item1.id],
                 rented_on: new Date(),
@@ -446,6 +442,14 @@ describe('Rentals', () => {
                     [item1.id]: 1,
                 },
             })
+
+            // take out of circulation, although copies are left
+            await client.collection('item').update(item1.id, { status: 'outofstock' })
+            await assert.isRejected(rent())
+
+            // release again
+            await client.collection('item').update(item1.id, { status: 'instock' })
+            await rent()
 
             item1 = await client.collection('item').getOne(item1.id)
             assert.equal(item1.status, 'instock') // 2 of 4 copies rented
