@@ -72,82 +72,35 @@ function getInactive(offsetMonths = 24, app = $app) {
 // E-Mail Sending
 
 function sendWelcomeMail(c) {
-    const { DRY_MODE, IMPORT_MODE } = require(`${__hooks}/constants.js`)
-    const customerEmail = c.getString('email')
+    const { sendMail } = require(`${__hooks}/services/mail.js`)
 
-    const html = $template.loadFiles(
-        `${__hooks}/views/layout.html`,
-        `${__hooks}/views/mail/customer_welcome.html`
-    ).render({
+    sendMail('customer_welcome', c.getString('email'), {
         firstname: c.getString('firstname'),
         lastname: c.getString('lastname'),
         iid: c.getInt('iid'),
     })
-
-    const message = new MailerMessage({
-        from: {
-            address: $app.settings().meta.senderAddress,
-            name: $app.settings().meta.senderName,
-        },
-        to: [{ address: customerEmail }],
-        subject: `Herzlich Willkommen im leih.lokal!`,
-        html,
-    })
-
-    if (!DRY_MODE && !IMPORT_MODE) $app.newMailClient().send(message)
 }
 
 function sendEmergencyClosingMail(c) {
-    const { DRY_MODE, IMPORT_MODE } = require(`${__hooks}/constants.js`)
-    const customerEmail = c.getString('email')
+    const { sendMail } = require(`${__hooks}/services/mail.js`)
 
-    const html = $template.loadFiles(
-        `${__hooks}/views/layout.html`,
-        `${__hooks}/views/mail/emergency_closing.html`
-    ).render({
+    sendMail('emergency_closing', c.getString('email'), {
         firstname: c.getString('firstname'),
         lastname: c.getString('lastname'),
     })
-
-    const message = new MailerMessage({
-        from: {
-            address: $app.settings().meta.senderAddress,
-            name: $app.settings().meta.senderName,
-        },
-        to: [{ address: customerEmail }],
-        subject: `[leih.lokal] Heute außerplanmäßig geschlossen!`,
-        html,
-    })
-
-    if (!DRY_MODE && !IMPORT_MODE) $app.newMailClient().send(message)
 }
 
 function sendDeletionReminderMail(c) {
-    const { DRY_MODE, IMPORT_MODE } = require(`${__hooks}/constants.js`)
-    const customerEmail = c.getString('email')
-
-    const html = $template.loadFiles(
-        `${__hooks}/views/layout.html`,
-        `${__hooks}/views/mail/deletion_reminder.html`
-    ).render({
-        firstname: c.getString('firstname'),
-        lastname: c.getString('lastname'),
-    })
-
-    const message = new MailerMessage({
-        from: {
-            address: $app.settings().meta.senderAddress,
-            name: $app.settings().meta.senderName,
-        },
-        to: [{ address: customerEmail }],
-        subject: `[leih.lokal] Löschung Ihrer Daten im leih.lokal nach Inaktivität (Kunden-Nr. ${c.getInt('iid')})`,
-        html,
-    })
+    const { sendMail } = require(`${__hooks}/services/mail.js`)
 
     c.set('delete_reminder_sent', new DateTime())
     $app.save(c)
 
-    if (!DRY_MODE && !IMPORT_MODE) $app.newMailClient().send(message)
+    sendMail('deletion_reminder', c.getString('email'), {
+        firstname: c.getString('firstname'),
+        lastname: c.getString('lastname'),
+        iid: c.getInt('iid'),
+    })
 }
 
 module.exports = {

@@ -65,6 +65,17 @@ Settings for compressing uploaded images (e.g. item images) are stored in the `s
 
 Images are compressed client-side by llka-verwaltung only. The backend doesn't recompress uploads (PocketBase's JS runtime can't process images), so clients that ignore these settings can still upload images up to the file field's maximum size. Other clients can read the configured (or default) settings via a public API endpoint (see below) to compress images before uploading, too.
 
+### Mail templates
+E-mails are rendered from [Go templates](https://pkg.go.dev/text/template): a layout ([`pb_hooks/views/layout.html`](pb_hooks/views/layout.html)) and a body per mail ([`pb_hooks/views/mail/`](pb_hooks/views/mail)). These defaults (leih.lokal Karlsruhe branding) can be overridden through the `mail_template` collection (superusers only), without changing any files:
+
+* `key`: which template to override, i.e. `layout` or one of the mails `customer_welcome`, `deletion_reminder`, `emergency_closing`, `reservation_confirmation`, `reservation_cancellation`, `return_reminder`
+* `subject`: subject of the mail (unused for `layout`)
+* `body`: HTML body of the mail, or the HTML of the layout, which must include the mail body via `{{template "body" .}}`
+
+Empty fields fall back to the defaults. Templates are validated (rendered with example data) before they are saved. If a custom template still fails to render a particular mail, the default is used for that mail instead.
+
+`GET /api/mail-templates/defaults` returns the default templates along with example data for every mail, which documents the variables available in it. `POST /api/mail-templates/preview` renders a mail with example data, e.g. to preview changes before saving them (body: `key` and optionally `subject`, `body` and `layout`; templates not given are taken from the `mail_template` collection or the defaults).
+
 ## API Endpoints
 See [Web APIs reference](https://pocketbase.io/docs/api-records/) for documentation on what endpoints are available and how to use them (especially with regard to filtering, searching, etc.).
 
@@ -78,6 +89,8 @@ See [Web APIs reference](https://pocketbase.io/docs/api-records/) for documentat
 * `GET` `/api/opening-hours` (public) — returns configured opening hours (or defaults)
 * `GET` `/api/image-compression` (public) — returns configured image compression settings (or defaults)
 * `POST` `/api/misc/emergency_closing` (superusers only)
+* `GET` `/api/mail-templates/defaults` (superusers only) — returns default mail templates and example data
+* `POST` `/api/mail-templates/preview` (superusers only) — renders a mail with example data
 
 ## Authentication
 For now, we'll only have _superusers_ (see [Authentication](https://pocketbase.io/docs/authentication/)) (as primarily other internal services are meant to consume the APIs) as well as a few _public_ endpoints (see below). In the future, we might actually want user accounts for our customers and thus define more elaborate [API rules and filters](https://pocketbase.io/docs/api-rules-and-filters/) then.

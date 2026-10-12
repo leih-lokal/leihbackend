@@ -218,7 +218,7 @@ function updateItems(reservation, oldReservation = null, isDelete = false, app =
 
 function sendConfirmationMail(r) {
     const { fmtDate, fmtCurrency } = require(`${__hooks}/utils/common.js`)
-    const { DRY_MODE, IMPORT_MODE } = require(`${__hooks}/constants.js`)
+    const { sendMail } = require(`${__hooks}/services/mail.js`)
 
     // Skip email if on_premises is true
     if (r.getBool('on_premises')) {
@@ -227,18 +227,14 @@ function sendConfirmationMail(r) {
 
     $app.expandRecord(r, ['items'], null)
 
-    const customerEmail = r.getString('customer_email')
-    const pickupDateStr = fmtDate(r.getDateTime('pickup'))
-    const cancelLink = `${$app.settings().meta.appURL}/reservation/cancel?token=${r.getString('cancel_token')}`
-
     const items = r.expandedAll('items')
     const depositTotal = items.reduce((sum, i) => sum + i.getFloat('deposit'), 0)
 
-    const html = $template.loadFiles(`${__hooks}/views/layout.html`, `${__hooks}/views/mail/reservation_confirmation.html`).render({
-        pickup: pickupDateStr,
+    sendMail('reservation_confirmation', r.getString('customer_email'), {
+        pickup: fmtDate(r.getDateTime('pickup')),
         customer_name: r.getString('customer_name'),
         customer_iid: r.getInt('customer_iid'),
-        customer_email: customerEmail,
+        customer_email: r.getString('customer_email'),
         customer_phone: r.getString('customer_phone'),
         comments: r.getString('comments'),
         // deposits are passed preformatted, empty if zero
@@ -248,50 +244,23 @@ function sendConfirmationMail(r) {
             deposit: i.getFloat('deposit') > 0 ? fmtCurrency(i.getFloat('deposit')) : '',
         })),
         deposit_total: depositTotal > 0 ? fmtCurrency(depositTotal) : '',
-        cancel_link: cancelLink,
+        cancel_link: `${$app.settings().meta.appURL}/reservation/cancel?token=${r.getString('cancel_token')}`,
         otp: r.getString('otp'),
     })
-
-    const message = new MailerMessage({
-        from: {
-            address: $app.settings().meta.senderAddress,
-            name: $app.settings().meta.senderName,
-        },
-        to: [{ address: customerEmail }],
-        subject: `Wir haben deine Reservierung für ${pickupDateStr} erhalten`,
-        html,
-    })
-
-    if (!DRY_MODE && !IMPORT_MODE) $app.newMailClient().send(message)
 }
 
 function sendCancellationMail(r) {
     const { fmtDate } = require(`${__hooks}/utils/common.js`)
-    const { DRY_MODE, IMPORT_MODE } = require(`${__hooks}/constants.js`)
+    const { sendMail } = require(`${__hooks}/services/mail.js`)
 
     // Skip email if on_premises is true
     if (r.getBool('on_premises')) {
         return
     }
 
-    const customerEmail = r.getString('customer_email')
-    const pickupDateStr = fmtDate(r.getDateTime('pickup'))
-
-    const html = $template.loadFiles(`${__hooks}/views/layout.html`, `${__hooks}/views/mail/reservation_cancellation.html`).render({
-        pickup: pickupDateStr,
+    sendMail('reservation_cancellation', r.getString('customer_email'), {
+        pickup: fmtDate(r.getDateTime('pickup')),
     })
-
-    const message = new MailerMessage({
-        from: {
-            address: $app.settings().meta.senderAddress,
-            name: $app.settings().meta.senderName,
-        },
-        to: [{ address: customerEmail }],
-        subject: `Deine Reservierung für ${pickupDateStr} wurde storniert`,
-        html,
-    })
-
-    if (!DRY_MODE && !IMPORT_MODE) $app.newMailClient().send(message)
 }
 
 module.exports = {

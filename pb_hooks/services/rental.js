@@ -175,38 +175,24 @@ function closeReservations(item, rental, numAdded, app = $app) {
 // E-Mail Sending
 
 function sendReminderMail(r) {
-    const { DRY_MODE, IMPORT_MODE } = require(`${__hooks}/constants.js`)
+    const { sendMail } = require(`${__hooks}/services/mail.js`)
 
     $app.expandRecord(r, ['items', 'customer'], null)
 
     const customerEmail = r.expandedOne('customer').getString('email')
-
-    // Get requested_copies to show copy counts in email
-    const requestedCopies = r.get('requested_copies') || {}
-
-    const html = $template.loadFiles(`${__hooks}/views/layout.html`, `${__hooks}/views/mail/return_reminder.html`).render({
-        items: r.expandedAll('items').map((i) => {
-            const copyCount = requestedCopies[i.id] || 1
-            return {
-                iid: i.getInt('iid'),
-                name: i.getString('name'),
-                copies: copyCount,
-            }
-        }),
-    })
-
-    const message = new MailerMessage({
-        from: {
-            address: $app.settings().meta.senderAddress,
-            name: $app.settings().meta.senderName,
-        },
-        to: [{ address: customerEmail }],
-        subject: `[leih.lokal] Rückgabe von Gegenständen morgen fällig`,
-        html,
-    })
+    const copiesOut = getCopiesOut(r)
 
     $app.logger().info(`Sending reminder mail for rental ${r.id} to customer ${customerEmail}.`)
-    if (!DRY_MODE && !IMPORT_MODE) $app.newMailClient().send(message)
+
+    sendMail('return_reminder', customerEmail, {
+        items: r.expandedAll('items')
+            .filter((i) => copiesOut[i.id]) // skip items that were returned already (partial return)
+            .map((i) => ({
+                iid: i.getInt('iid'),
+                name: i.getString('name'),
+                copies: copiesOut[i.id],
+            })),
+    })
 }
 
 module.exports = {
